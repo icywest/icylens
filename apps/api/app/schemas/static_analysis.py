@@ -1,8 +1,8 @@
-from datetime import datetime
-from typing import Annotated, Literal
+from datetime import datetime, timedelta
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.content_inspection import (
     EntropySummary,
@@ -15,6 +15,8 @@ from app.schemas.fingerprint import DetectedFormat, FormatConsistency
 class StaticAnalysisFingerprint(BaseModel):
     """Identity and format evidence derived from the accepted byte stream."""
 
+    model_config = ConfigDict(extra="forbid")
+
     sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
     size_bytes: Annotated[int, Field(gt=0)]
     detected_format: DetectedFormat
@@ -22,12 +24,14 @@ class StaticAnalysisFingerprint(BaseModel):
 
 
 class StaticAnalysisContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     entropy: EntropySummary
     strings: StringExtractionSummary
 
 
 class AnalysisLimitation(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     code: Literal[
         "static_only",
@@ -43,6 +47,8 @@ class AnalysisLimitation(BaseModel):
 
 class StaticAnalysisResponse(BaseModel):
     """Non-persistent, descriptive report for one synchronous operation."""
+
+    model_config = ConfigDict(extra="forbid")
 
     analysis_id: UUID
     analysis_type: Literal["static"]
@@ -61,4 +67,16 @@ class StaticAnalysisResponse(BaseModel):
     def require_timezone(cls, value: datetime) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("timestamp must be timezone-aware")
+        if value.utcoffset() != timedelta(0):
+            raise ValueError("timestamp must use UTC")
         return value
+
+    @model_validator(mode="after")
+    def validate_report_consistency(self) -> Self:
+        if self.completed_at < self.created_at:
+            raise ValueError("completed_at must not be earlier than created_at")
+        if self.fingerprint.size_bytes != self.content.entropy.total_bytes:
+            raise ValueError(
+                "fingerprint and entropy byte counts must describe the same input"
+            )
+        return self

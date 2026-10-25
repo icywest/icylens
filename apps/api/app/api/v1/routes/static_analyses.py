@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
@@ -10,6 +11,8 @@ from app.services.ingestion import (
     UploadTooLargeError,
 )
 from app.services.static_analysis import analyze_static_upload
+
+logger = logging.getLogger("icylens.static_analysis")
 
 router = APIRouter(prefix="/static-analyses", tags=["Static Analyses"])
 
@@ -57,8 +60,12 @@ async def create_static_analysis(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
-    except Exception:
+    except Exception as exc:
         await file.close()
+        logger.error(
+            "Static analysis failed with exception type %s",
+            type(exc).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Static analysis could not be completed.",

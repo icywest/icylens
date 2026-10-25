@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.fingerprint import DetectedFormat
 
@@ -8,11 +8,15 @@ IndicatorCategory = Literal["network", "command", "file"]
 
 
 class EntropySummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     shannon_entropy: Annotated[float, Field(ge=0, le=8)]
     total_bytes: Annotated[int, Field(gt=0)]
 
 
 class StringExtractionSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     observed_count: Annotated[int, Field(ge=0)]
     retained_count: Annotated[int, Field(ge=0)]
     truncated: bool
@@ -23,6 +27,8 @@ class StringExtractionSummary(BaseModel):
 
 
 class StaticIndicator(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     id: str
     category: IndicatorCategory
     description: str
@@ -33,6 +39,8 @@ class StaticIndicator(BaseModel):
 
 
 class ContentInspectionResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     filename: Annotated[str, Field(min_length=1, max_length=255)]
     size_bytes: Annotated[int, Field(gt=0)]
     sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
