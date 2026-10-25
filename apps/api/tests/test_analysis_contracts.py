@@ -296,6 +296,7 @@ def test_openapi_contains_checkpoint_contracts_once(client: TestClient) -> None:
         "/api/v1/uploads/",
         "/api/v1/fingerprints/",
         "/api/v1/content-inspections/",
+        "/api/v1/static-analyses/",
     }
     assert "AnalysisRequest" in schema["components"]["schemas"]
     assert "HealthResponse" in schema["components"]["schemas"]
