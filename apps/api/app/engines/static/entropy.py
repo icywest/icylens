@@ -22,4 +22,6 @@ class EntropyAccumulator:
             for count in self._frequencies
             if count
         )
+        if not math.isfinite(entropy):
+            raise ValueError("entropy is not finite")
         return min(8.0, max(0.0, entropy))

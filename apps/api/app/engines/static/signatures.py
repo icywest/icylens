@@ -52,10 +52,11 @@ def detect_signature(header: bytes) -> SignatureMatch:
             header[PE_OFFSET_FIELD:PE_OFFSET_FIELD_END],
             byteorder="little",
         )
+        if pe_offset < 0 or pe_offset > len(header) or pe_offset < PE_OFFSET_FIELD_END:
+            return SignatureMatch(format="unknown")
         signature_end = pe_offset + len(PE_SIGNATURE)
         if (
-            pe_offset >= PE_OFFSET_FIELD_END
-            and signature_end <= len(header)
+            signature_end <= len(header)
             and header[pe_offset:signature_end] == PE_SIGNATURE
         ):
             return SignatureMatch(
