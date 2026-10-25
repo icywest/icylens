@@ -261,3 +261,32 @@ and must not reinterpret this report as a label.
 Residual controls remain deployment concerns: Starlette may spool multipart
 parts before the application limit runs, and the 10 MiB file ceiling is not a
 whole-request, concurrency, CPU-time, memory, or temporary-storage defense.
+
+## Phase 02 Checkpoint 05 lifecycle semantics
+
+The static-analysis endpoint remains synchronous and deliberately has no
+state machine. Request parsing and filename validation precede the shared
+bounded read; successful extraction and report assembly produce the only
+response state, `completed`. Validation, size, multipart, or processing errors
+produce HTTP errors and no analysis resource. UUIDs identify individual
+operations for correlation only and cannot be retrieved later.
+
+`StaticAnalysisResponse` now enforces the invariants that cross component
+boundaries: both timestamps must be aware UTC values, completion cannot precede
+creation, and fingerprint and entropy byte counts must agree. Existing field
+types continue to constrain UUID, lowercase SHA-256, entropy, literals, and raw
+string non-exposure. Static report models and reused content-evidence models
+forbid unknown fields so unsupported evidence cannot silently enter a report.
+Successful JSON remains backward compatible.
+
+The ingestion service continues to own unconditional `UploadFile` cleanup.
+Known upload exceptions cross the service boundary and are mapped by the route
+to 413 or 422. Unexpected exceptions become a generic 500; only their class is
+logged, without exception text, stack data, extracted strings, or bytes.
+
+An asynchronous design would be a separate future boundary: a durable job
+record could own queued/processing/failed states, a worker could invoke the
+same bounded feature pipeline, and retrieval could expose a persisted report.
+None of those semantics are simulated by the current endpoint. An Astro client
+can use generated OpenAPI types now, submit multipart data, branch on HTTP
+status, and render evidence plus limitations from a completed response.

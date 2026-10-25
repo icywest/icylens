@@ -186,9 +186,23 @@ format detection is not structural validation, entropy is not maliciousness,
 and textual matches may be benign. Existing upload, fingerprint, and content
 inspection endpoints remain unchanged.
 
+The endpoint has a synchronous lifecycle: validation and processing either
+finish with HTTP 200 and `status: "completed"`, or terminate with an HTTP error.
+It does not expose queued, processing, or failed resources. Report validation
+requires UTC timestamps in chronological order and matching fingerprint and
+entropy byte counts; unknown report fields are rejected. Unexpected failures
+return a generic 500 while recording only the exception type, and upload
+cleanup remains guaranteed by the shared ingestion layer.
+
 ```powershell
 curl.exe -F "file=@sample.pdf;type=application/pdf" http://127.0.0.1:8000/api/v1/static-analyses/
 ```
+
+A future asynchronous API can create a separate persisted job resource with
+queued/processing states and GET-by-ID semantics. That resource does not exist
+today. A planned Astro client can consume the current OpenAPI schema directly,
+treat 200 as a completed computation, and render limitations and errors without
+interpreting completion as a security verdict.
 
 ## Testing and quality gates
 

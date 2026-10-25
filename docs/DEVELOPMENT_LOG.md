@@ -1,5 +1,28 @@
 # iCYLENS Development Log
 
+## Phase 02 / Checkpoint 05: Analysis Lifecycle and Contract Hardening
+
+Status: PASS - 208 tests passed (16 focused lifecycle and contract cases
+added), statement and branch coverage reached 100%, and Ruff lint/format,
+strict mypy, `pip check`, OpenAPI, local runtime checks, and the unified Quality
+Gate passed on 2026-10-25.
+
+- Formalized the synchronous lifecycle: successful operations alone return a
+  completed report; errors create no queued, processing, failed, or retrievable
+  resource.
+- Enforced UTC timestamps, chronological completion, cross-section byte-count
+  equality, strict report fields, and existing UUID/hash/entropy/raw-string
+  constraints at the Pydantic boundary.
+- Preserved every successful JSON shape and specialized legacy endpoint.
+- Added safe unexpected-error observability using exception type only while
+  retaining generic client responses and unconditional upload cleanup.
+- Documented the distinct future boundary for persistent background jobs and
+  typed Astro consumption without implementing either.
+
+No persistence, GET-by-ID, queue, worker, ML, CVE lookup, score, verdict,
+authentication, rate limiting, frontend, or deployment infrastructure was
+introduced.
+
 ## Phase 02 / Checkpoint 04: Static Analysis Orchestration
 
 Status: PASS - 192 tests passed (17 added for orchestration, API, lifecycle,

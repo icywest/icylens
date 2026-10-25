@@ -310,6 +310,32 @@ window, bounded extraction settings, and unconditional upload cleanup as the
 existing endpoints. It performs no execution, deserialization, network lookup,
 sample/report persistence, malware classification, or scoring.
 
+### Lifecycle and report invariants
+
+The operation is synchronous. HTTP 200 always carries `status: "completed"`
+and means every required extractor and report-assembly step finished. Input or
+processing failures return an HTTP error instead of a queued, processing, or
+failed report. The UUID is an operation identifier, not a resource URL; there
+is no history or GET-by-ID endpoint.
+
+The response contract enforces:
+
+- valid UUID and literal `static`/`completed` values;
+- aware UTC timestamps with `completed_at >= created_at`;
+- equal `fingerprint.size_bytes` and `content.entropy.total_bytes`;
+- lowercase 64-character hexadecimal SHA-256;
+- entropy in the inclusive range 0 through 8;
+- `raw_strings_exposed: false`;
+- typed indicators, truncation flags, and stable limitation codes;
+- rejection of unknown fields throughout the unified report.
+
+Upload, fingerprint, content-inspection, and static-analysis responses remain
+specialized contracts: respectively ingestion metadata, deterministic file
+characteristics, measured content features, and consolidated evidence. They
+are not wrapped in a generic envelope. A future Astro client should generate
+or maintain types from OpenAPI, handle non-200 responses separately, and never
+render `completed` as a safety verdict.
+
 ## Current limitations
 
 - There is no dynamic threat-analysis or malware-verdict endpoint.
