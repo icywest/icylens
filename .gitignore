@@ -20,6 +20,7 @@ build/
 # ML artifacts
 *.pkl
 *.joblib
+/datasets/generated/
 
 # Local analysis files
 data/uploads/

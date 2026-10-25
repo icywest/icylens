@@ -218,6 +218,14 @@ endpoint, score, external dataset, or executable sample is included. See
 [`docs/ML_FEATURE_CONTRACT.md`](docs/ML_FEATURE_CONTRACT.md) and
 [`docs/ML_DATASET_GOVERNANCE.md`](docs/ML_DATASET_GOVERNANCE.md).
 
+The Phase 03.02 local dataset pipeline additionally accepts bounded UTF-8 JSON
+or JSONL, reports deterministic deduplication and eligibility decisions, plans
+seeded label-stratified splits, emits a typed manifest with a canonical digest,
+and writes versioned artifacts without overwrite. Generated artifacts under
+`datasets/generated/` are intentionally ignored by Git. See
+[`docs/ML_DATASET_PIPELINE.md`](docs/ML_DATASET_PIPELINE.md) for the format,
+security limits, CLI commands, and integrity policy.
+
 ## Testing and quality gates
 
 The suite uses pytest markers to make its intent explicit:

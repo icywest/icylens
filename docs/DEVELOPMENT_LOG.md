@@ -1,5 +1,29 @@
 # iCYLENS Development Log
 
+## Phase 03 / Checkpoint 03.02: Reproducible Dataset Builder
+
+Status: PASS - 284 tests passed (54 focused pipeline cases added), total
+statement/branch coverage reached 96.42%, and Ruff lint/format, strict mypy,
+`pip check`, FastAPI regression coverage, and the unified Quality Gate passed
+on 2026-10-25.
+
+- Added bounded strict UTF-8 JSON and JSONL imports with byte, record, and line
+  limits and no arbitrary deserialization or network behavior.
+- Added an auditable builder separating structural validity, governance,
+  training eligibility, deterministic SHA-256 deduplication, and acceptance.
+- Added fatal conflict detection for labels, label metadata, provenance,
+  feature/extraction contracts, record IDs, and existing split assignments.
+- Added versioned seeded label-stratified splitting that is invariant to input
+  order, respects existing assignments, and rejects infeasible class coverage.
+- Added typed manifests, canonical content digests, derived-count verification,
+  staged atomic export, non-overwrite behavior, and tamper detection.
+- Added a minimal local argparse workflow for validate/build/inspect and
+  comprehensive pipeline, security, architecture, and acceptance documentation.
+
+Generated metadata artifacts are ignored by Git. No uploaded binaries, model
+training, inference, evaluation, prediction endpoint, external dataset, threat
+intelligence, behavioral analysis, database, or cloud storage was introduced.
+
 ## Phase 03 / Checkpoint 03.01: ML Dataset Governance & Feature Contracts
 
 Status: PASS - 230 tests passed (22 focused ML contract and validation cases

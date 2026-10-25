@@ -323,3 +323,39 @@ and temporal split policy, source diversity analysis, immutable manifests, and
 sealed test-set custody before training. There is currently no training,
 inference, evaluation, endpoint, persistence, CVE intelligence, MITRE mapping,
 or behavioral analysis.
+
+## Phase 03 Checkpoint 03.02 dataset pipeline
+
+The offline ML boundary now extends from individual contracts to controlled
+dataset releases:
+
+```text
+local JSON/JSONL
+  -> bounded import
+  -> strict record/governance assessment
+  -> deterministic exact-hash canonicalization
+  -> leakage-safe constrained split planner
+  -> records.jsonl + typed manifest + validation report
+  -> integrity verification before future training
+```
+
+`ml/importing.py` performs bounded UTF-8 JSON/JSONL input. `ml/builder.py`
+separates assessment from building and records all exclusions. `ml/splitting.py`
+uses versioned, seeded SHA-256 ranking rather than runtime hashing.
+`schemas/ml_manifest.py` owns split configuration and manifest contracts.
+`ml/artifacts.py` owns staged non-overwriting export and verification. The
+argparse CLI in `scripts/dataset_cli.py` exposes validate/build/inspect without
+starting or importing the web server.
+
+The content digest covers canonical released records, dataset identity,
+builder/feature versions, and split configuration; it excludes its own value
+and creation time. Load-time checks independently derive counts, labels,
+splits, source IDs, extraction versions, and validation-summary consistency.
+Filesystem persistence is limited to authorized metadata artifacts, not
+uploaded bytes.
+
+The planner respects prior assignments and rejects infeasible class coverage.
+Its only grouping guarantee is exact SHA-256 identity. Family, campaign,
+source-cluster, and near-duplicate leakage remain explicit future controls.
+There is still no model training, inference, evaluation, FastAPI ML route,
+database, cloud storage, or executable-sample persistence.

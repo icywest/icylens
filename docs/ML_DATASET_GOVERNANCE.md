@@ -119,3 +119,24 @@ license review, provenance, label audit, feature/extraction versions,
 deduplication results, grouped/temporal split rationale, contamination review,
 privacy review, class/source statistics, and sealed-test custody are approved.
 Validation errors block release; warnings require a documented disposition.
+
+## Reproducible builder enforcement
+
+The Phase 03.02 builder operationalizes this policy for local structured
+metadata. JSON/JSONL imports are bounded and strict; assessment reports each
+structural, governance, eligibility, duplicate, conflict, and split decision.
+Fatal findings prevent artifact creation. Exact compatible duplicates retain a
+stable canonical representative, while label, provenance, feature, extraction,
+or split conflicts stop the build.
+
+The initial split planner is label-stratified and reproducible but groups only
+by exact SHA-256 because no trustworthy family/campaign grouping field exists.
+Its manifest must therefore retain `sha256_exact_only`; it cannot claim
+near-duplicate or family isolation. Existing assignments are preserved, and
+the independent test split remains sealed for later evaluation.
+
+Generated local artifacts live under the ignored `datasets/generated/` tree,
+never overwrite an existing dataset version, and contain metadata records only.
+Their digest supports integrity/reproducibility checks but is not a publisher
+signature or a defense against an attacker who can replace both data and
+manifest.

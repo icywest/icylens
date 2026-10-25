@@ -82,3 +82,11 @@ the resulting matrix to Random Forest. The test split must stay untouched
 during preprocessing choices, feature selection, model selection, and
 hyperparameter tuning. Schema `1.0.0` does not claim that these observations
 are sufficient, causal, unbiased, or predictive.
+
+## Dataset artifact compatibility
+
+The Phase 03.02 builder preserves this schema unchanged. It rejects unsupported
+versions before splitting and serializes the version into both split
+configuration and manifest. Canonical records retain the nested feature object;
+the later trainer must verify artifact integrity and call the established
+ordered-vector contract rather than relying on incidental JSON key order.
