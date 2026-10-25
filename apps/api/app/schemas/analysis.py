@@ -34,7 +34,7 @@ class AnalysisRequest(BaseModel):
 
     @field_validator("filename")
     @classmethod
-    def validate_filename(cls, value: str) -> str:
+    def validate_filename_field(cls, value: str) -> str:
         return validate_filename(value)
 
 
