@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
     LOG_LEVEL: LogLevel = "INFO"
+    MAX_UPLOAD_BYTES: int = Field(
+        default=10 * 1024 * 1024,
+        gt=0,
+        le=1024 * 1024 * 1024,
+    )
+    INSPECTION_MIN_STRING_LENGTH: int = Field(default=4, gt=0, le=256)
+    INSPECTION_MAX_STRINGS: int = Field(default=100, gt=0, le=1000)
+    INSPECTION_MAX_STRING_LENGTH: int = Field(default=256, gt=0, le=4096)
+    INSPECTION_MAX_INDICATORS: int = Field(default=100, gt=0, le=1000)
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod
@@ -48,6 +57,11 @@ class Settings(BaseSettings):
     def validate_environment_safety(self) -> Self:
         if self.APP_ENV == "production" and self.DEBUG:
             raise ValueError("DEBUG must be disabled in production")
+        if self.INSPECTION_MAX_STRING_LENGTH < self.INSPECTION_MIN_STRING_LENGTH:
+            raise ValueError(
+                "INSPECTION_MAX_STRING_LENGTH must be greater than or equal to "
+                "INSPECTION_MIN_STRING_LENGTH"
+            )
         return self
 
 

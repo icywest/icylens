@@ -8,6 +8,7 @@ from app.schemas.common import (
     AnalysisEngine,
     AnalysisStatus,
     ThreatVerdict,
+    validate_filename,
 )
 
 
@@ -34,13 +35,7 @@ class AnalysisRequest(BaseModel):
     @field_validator("filename")
     @classmethod
     def validate_filename(cls, value: str) -> str:
-        if any(not character.isprintable() for character in value):
-            raise ValueError("filename must not contain control characters")
-        if "/" in value or "\\" in value:
-            raise ValueError("filename must not contain path separators")
-        if value in {".", ".."}:
-            raise ValueError("filename must be a file name, not a path component")
-        return value
+        return validate_filename(value)
 
 
 class AnalysisIndicator(BaseModel):
