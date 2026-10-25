@@ -1,1 +1,1 @@
-"""Framework-independent ML data contracts; no training or inference."""
+"""Framework-independent ML data and offline training; no serving or inference API."""
