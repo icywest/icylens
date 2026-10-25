@@ -1,0 +1,26 @@
+[
+  {
+    "identity": {"sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "record_id": "synthetic-001"},
+    "features": {"file_size_bytes": 128, "shannon_entropy": 4.25, "printable_string_count": 7, "retained_string_count": 5, "indicator_count": 0, "detected_format": "pdf", "format_consistency": "match", "has_url_candidate": false, "has_ipv4_candidate": false, "has_powershell_reference": false, "has_encoded_command_token": false, "has_script_reference": false, "strings_truncated": false, "indicators_truncated": false, "feature_schema_version": "1.0.0"},
+    "label": {"value": "benign", "source": "deterministic test fixture declaration", "confidence": 1.0, "verified_on": "2026-10-25", "synthetic": true},
+    "provenance": {"dataset_id": "icylens-safe-synthetic-v1", "source_kind": "synthetic", "source_description": "Locally authored non-executable test data", "collected_on": "2026-10-25", "license": "Project test fixture", "usage_restrictions": "Testing and education only"},
+    "extraction": {"extractor_version": "static-analysis-adapter/1.0.0", "feature_schema_version": "1.0.0", "minimum_string_length": 4, "maximum_retained_strings": 100, "maximum_characters_per_string": 256, "maximum_indicators": 100},
+    "split": "unassigned"
+  },
+  {
+    "identity": {"sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "record_id": "synthetic-002"},
+    "features": {"file_size_bytes": 256, "shannon_entropy": 7.5, "printable_string_count": 3, "retained_string_count": 3, "indicator_count": 2, "detected_format": "unknown", "format_consistency": "unknown", "has_url_candidate": true, "has_ipv4_candidate": false, "has_powershell_reference": true, "has_encoded_command_token": false, "has_script_reference": false, "strings_truncated": false, "indicators_truncated": false, "feature_schema_version": "1.0.0"},
+    "label": {"value": "malicious", "source": "synthetic scenario declaration; not a detection claim", "confidence": 1.0, "verified_on": "2026-10-25", "synthetic": true},
+    "provenance": {"dataset_id": "icylens-safe-synthetic-v1", "source_kind": "synthetic", "source_description": "Locally authored non-executable test data", "collected_on": "2026-10-25", "license": "Project test fixture", "usage_restrictions": "Testing and education only"},
+    "extraction": {"extractor_version": "static-analysis-adapter/1.0.0", "feature_schema_version": "1.0.0", "minimum_string_length": 4, "maximum_retained_strings": 100, "maximum_characters_per_string": 256, "maximum_indicators": 100},
+    "split": "unassigned"
+  },
+  {
+    "identity": {"sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "record_id": "synthetic-003"},
+    "features": {"file_size_bytes": 64, "shannon_entropy": 1.5, "printable_string_count": 1, "retained_string_count": 1, "indicator_count": 0, "detected_format": "unknown", "format_consistency": "unknown", "has_url_candidate": false, "has_ipv4_candidate": false, "has_powershell_reference": false, "has_encoded_command_token": false, "has_script_reference": false, "strings_truncated": true, "indicators_truncated": false, "feature_schema_version": "1.0.0"},
+    "label": {"value": "unknown", "source": "synthetic scenario with deliberately absent ground truth", "confidence": null, "verified_on": null, "synthetic": true},
+    "provenance": {"dataset_id": "icylens-safe-synthetic-v1", "source_kind": "synthetic", "source_description": "Locally authored non-executable test data", "collected_on": "2026-10-25", "license": "Project test fixture", "usage_restrictions": "Testing and education only"},
+    "extraction": {"extractor_version": "static-analysis-adapter/1.0.0", "feature_schema_version": "1.0.0", "minimum_string_length": 4, "maximum_retained_strings": 100, "maximum_characters_per_string": 256, "maximum_indicators": 100},
+    "split": "unassigned"
+  }
+]
