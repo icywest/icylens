@@ -66,7 +66,9 @@ async def analyze_static_upload(
         maximum_string_length=maximum_string_length,
         maximum_indicators=maximum_indicators,
     )
-    completed_at = max(datetime.now(UTC), created_at)
+    completed_at = datetime.now(UTC)
+    if completed_at < created_at:
+        completed_at = created_at
     extension = extract_extension(inspection.filename)
 
     return StaticAnalysisResponse(
