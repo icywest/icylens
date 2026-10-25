@@ -1,5 +1,28 @@
 # iCYLENS Development Log
 
+## Phase 03 / Checkpoint 03.04: Model Evaluation and Explainability
+
+Status: PASS - 352 tests passed (37 focused evaluation cases added), total
+statement/branch coverage reached 94.11%, and Ruff lint/format, strict mypy,
+`pip check`, regressions, and the unified Quality Gate passed on 2026-10-25.
+
+- Added strict evaluation schema `1.0.0` with explicit available/unavailable
+  metrics, fixed benign/malicious class semantics, and finite-value enforcement.
+- Added per-class classification, imbalance, probability, reliability-bin,
+  threshold, privacy-conscious aggregate error, and limitation reporting.
+- Added deterministic bounded permutation importance over the 14 original
+  features through each complete fitted Pipeline.
+- Added common-basis comparison and a conservative policy supporting selection,
+  insufficient evidence, inconclusive performance, and validation failure.
+- Added validation-only in-process evaluation, explicit synthetic abstention,
+  staged non-overwriting JSON artifacts, tamper verification, and local CLI.
+- Documented calibration limitations, correlated features, serialized-model
+  risk, sealed-test custody, and a future one-time final-evaluation protocol.
+
+No test evaluation, hyperparameter tuning, calibration fit, SHAP, local causal
+narrative, joblib loading, registry/promotion, inference route, external data,
+cloud service, or malware blocking was introduced.
+
 ## Phase 03 / Checkpoint 03.03: Reproducible Baseline Training
 
 Status: PASS - 315 tests passed (31 focused training cases added), total

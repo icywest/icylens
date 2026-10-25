@@ -153,4 +153,18 @@ scientific representativeness.
 The training service fits only the training split and computes exploratory
 metrics only on validation. Test records are checked for split custody and class
 presence but their features are not transformed or predicted. Test evaluation
-requires the separate Phase 03.04 protocol.
+requires a separately approved final protocol.
+
+## Evaluation custody
+
+Phase 03.04 uses validation only for classification/probability metrics,
+threshold exploration, error groups, permutation importance, comparison, and
+selection. Canonical whole-release integrity checks do not authorize analytical
+use of test contents. Test is not transformed, predicted, scored, or used for
+importance or selection.
+
+Before a future one-time opening, freeze the dataset digest, candidate,
+complete fitted Pipeline, threshold, metrics, subgroup plan, and acceptance
+rules. Record approval, run the frozen plan exactly once, publish all predefined
+results, and prohibit post-test tuning. Any material change starts a new
+research cycle and requires a newly governed independent test set.

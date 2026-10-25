@@ -394,3 +394,27 @@ Joblib artifacts are pickle-compatible and therefore trusted-local-only. The
 application contains no generic model loader, serving endpoint, test evaluation,
 hyperparameter search, SHAP, or malware verdict. Future inference must admit a
 compatible trusted experiment and reuse its complete fitted Pipeline.
+
+## Phase 03 Checkpoint 03.04 offline evaluation
+
+The evaluation boundary accepts only a verified dataset and fitted Pipelines
+held by the current trusted process. `ml/evaluation.py` owns validation-only
+metrics, probability checks, threshold summaries, aggregate error analysis,
+original-feature permutation importance, comparison, and conservative
+selection. `schemas/ml_evaluation.py` owns versioned strict contracts, while
+`ml/evaluation_artifacts.py` owns bounded staged JSON persistence.
+
+```text
+verified dataset + in-process fitted Pipelines
+  -> identity/schema/digest compatibility
+  -> validation matrix only
+  -> metrics + errors + probabilities + permutation importance
+  -> common-basis comparison -> select or abstain
+  -> atomic evaluation JSON + digest manifest
+```
+
+Test is not transformed, predicted, scored, or used for importance, threshold
+analysis, or selection. The CLI retrains and evaluates in one controlled local
+process rather than loading pickle-compatible joblib. There are no new FastAPI
+routes, model registry, promotion, final test evaluation, local contribution
+narratives, SHAP, calibration fit, or security risk score.

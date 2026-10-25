@@ -139,9 +139,14 @@ The CLI verifies the dataset, trains the three candidates, writes one new
 experiment, prints validation metrics and interpretation mode, and returns
 nonzero on failure. Reusing an experiment ID never overwrites its artifact.
 
-## Future evaluation and inference
+## Evaluation and future inference
 
-Phase 03.04 may compare validation behavior, evaluate the sealed test once under
-an approved protocol, and add explainability. A later inference boundary must
-reuse the complete fitted `Pipeline`, not independently recreate encoding or
-scaling. Safe model admission/loading is reviewed again before serving.
+Phase 03.04 now compares validation behavior, analyzes probability/error
+quality, and computes bounded original-feature permutation importance through
+the complete fitted Pipeline. It deliberately abstains on synthetic evidence
+and keeps test sealed. See [`ML_MODEL_EVALUATION.md`](ML_MODEL_EVALUATION.md).
+
+A later inference boundary must reuse the complete fitted `Pipeline`, not
+independently recreate encoding or scaling. Safe artifact admission,
+authenticity, compatibility, and pickle-aware loading remain mandatory reviews
+before serving.

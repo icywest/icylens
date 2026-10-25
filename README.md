@@ -235,6 +235,15 @@ never overwritten. See
 [`docs/ML_TRAINING_PIPELINE.md`](docs/ML_TRAINING_PIPELINE.md). Synthetic smoke
 metrics are explicitly not evidence of real malware detection performance.
 
+Phase 03.04 adds typed validation-only evaluation: per-class/error/probability
+metrics, bounded threshold analysis, aggregate privacy-conscious error groups,
+original-feature permutation importance, deterministic model comparison, and a
+selection policy that can abstain. Evaluation reuses trusted in-process
+Pipelines and never deserializes arbitrary joblib artifacts or opens test.
+Generated reports under `evaluations/generated/` are ignored by Git. See
+[`docs/ML_MODEL_EVALUATION.md`](docs/ML_MODEL_EVALUATION.md). Synthetic results
+remain technical smoke tests and cannot authorize model selection or deployment.
+
 ## Testing and quality gates
 
 The suite uses pytest markers to make its intent explicit:
