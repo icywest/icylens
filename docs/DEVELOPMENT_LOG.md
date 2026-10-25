@@ -1,5 +1,26 @@
 # iCYLENS Development Log
 
+## Phase 02 / Checkpoint 04: Static Analysis Orchestration
+
+Status: PASS - 192 tests passed (17 added for orchestration, API, lifecycle,
+security, and regression behavior), statement and branch coverage reached 100%,
+and Ruff lint/format, strict mypy, `pip check`, and the unified Quality Gate
+passed on 2026-10-25.
+
+- Added `POST /api/v1/static-analyses/` with one typed, unified report.
+- Reused the existing content-inspection service as the sole single-pass
+  pipeline instead of duplicating engines or reading the upload again.
+- Added operation UUIDs, aware UTC lifecycle timestamps, format consistency,
+  nested fingerprint/content evidence, source-preserving indicators, explicit
+  truncation, and stable limitation codes.
+- Kept the legacy analysis schema unchanged because its verdict/risk shape does
+  not accurately represent descriptive static evidence.
+- Added generic unexpected-failure handling and verified cleanup on success,
+  validation failure, oversize rejection, and engine failure.
+
+No verdict, risk score, ML, CVE lookup, MITRE mapping, persistence, background
+job, authentication, frontend, network lookup, or content execution was added.
+
 ## Phase 02 / Checkpoint 03: Entropy and Content Inspection
 
 Status: PASS - 175 tests passed (43 added across engine, API, configuration,

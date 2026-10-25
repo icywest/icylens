@@ -2,12 +2,12 @@
 
 ## System overview
 
-iCYLENS `0.1.0` currently provides a Python 3.12/3.13 backend foundation. The
-implemented system is intentionally small: FastAPI exposes versioned HTTP
-routes, Pydantic defines request and response contracts, and
-`pydantic-settings` supplies typed configuration. Checkpoint 02.01 adds a
-non-persistent upload-validation pipeline. There are no analysis engines,
-databases, durable file stores, or external service clients.
+iCYLENS `0.1.0` currently provides a Python 3.12/3.13 backend foundation and a
+bounded static-analysis pipeline. FastAPI exposes versioned HTTP routes,
+Pydantic defines request and response contracts, and `pydantic-settings`
+supplies typed configuration. Static engines operate incrementally; there are
+no databases, durable file stores, dynamic analyzers, or external service
+clients.
 
 The backend lives in `apps/api`:
 
@@ -217,3 +217,47 @@ Starlette still parses/spools multipart content before application processing.
 Application bounds do not replace proxy body limits, authentication,
 authorization, concurrency/rate controls, interrupting timeouts, process
 limits, or temporary-storage quotas.
+
+## Phase 02 Checkpoint 04 architecture
+
+`api/v1/routes/static_analyses.py` exposes
+`POST /api/v1/static-analyses/`. The route binds multipart input, supplies the
+central settings, maps known ingestion failures, and converts unexpected
+failures to a content-free 500 response. It does not contain extraction logic.
+
+`services/static_analysis.py` is the orchestration boundary. It creates the
+synchronous operation identity and aware UTC timestamps, delegates exactly
+once to `services.content_inspection.inspect_content`, and maps that result to
+`StaticAnalysisResponse`. The existing inspection service remains the single
+pipeline owner: its callback sends every accepted chunk to fingerprint,
+signature-prefix, entropy, and printable-string accumulators before bounded
+indicator matching. The orchestrator never rereads the upload and never
+reconstructs those engines.
+
+```text
+multipart UploadFile
+  -> consume_upload (validation, 64 KiB bounded reads, finally-close)
+     -> one callback -> SHA-256 + signature prefix + histogram + ASCII runs
+  -> bounded indicator matching over retained string previews
+  -> content-inspection result
+  -> static-analysis adapter (identity, timestamps, consistency, limitations)
+  -> typed unified response (discarded, not persisted)
+```
+
+Engines extract deterministic observations; services coordinate lifecycle and
+compose those observations into a use-case response. Keeping extraction apart
+from interpretation prevents entropy, extensions, or textual patterns from
+becoming unsupported verdicts. Indicator `source`, byte `offset`, redacted
+`evidence`, and truncation flags retain provenance and make bounded results
+explainable without exposing raw strings.
+
+The preparatory `AnalysisResult` model was not reused because it structurally
+requires a threat verdict and exposes a risk-score concept unsupported by this
+checkpoint. `StaticAnalysisResponse` instead has a literal `completed` process
+status and no verdict or score. Future ML or CVE services can consume the same
+typed evidence or add separately sourced observations, but are not implemented
+and must not reinterpret this report as a label.
+
+Residual controls remain deployment concerns: Starlette may spool multipart
+parts before the application limit runs, and the 10 MiB file ceiling is not a
+whole-request, concurrency, CPU-time, memory, or temporary-storage defense.

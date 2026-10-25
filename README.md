@@ -1,8 +1,9 @@
 # iCYLENS
 
 iCYLENS is an experimental cybersecurity analysis platform. Phase 02 now
-provides a typed FastAPI backend with bounded, non-persistent file ingestion
-and deterministic file fingerprinting in addition to the Phase 01 foundation.
+provides a typed FastAPI backend with bounded, non-persistent file ingestion,
+deterministic static feature extraction, and a unified static-analysis report
+in addition to the Phase 01 foundation.
 
 Phase 01 baseline: `0.1.0`, technically accepted on 2026-10-25 after an
 independent audit. See the [architecture](docs/ARCHITECTURE.md),
@@ -166,6 +167,28 @@ evidence, and one read chunk. Unicode/UTF-16 strings, embedded decoding, YARA,
 full parsing, verdicts, and risk scoring are not supported. Before inspecting
 real user files, restrict API access and add deployment-level request,
 concurrency, time, memory, and temporary-storage controls.
+
+## Unified static analysis
+
+`POST /api/v1/static-analyses/` is the consolidated synchronous entry point.
+It accepts one required multipart `file`, delegates to the existing content
+inspection pipeline, and returns a generated operation UUID, aware UTC
+timestamps, fingerprint and format evidence, entropy, bounded string
+statistics, redacted indicators with source and byte offsets, truncation state,
+and stable limitation codes. The operation identifier does not imply storage;
+neither the sample nor the report is persisted or retrievable by ID.
+
+All extractors observe the same 64 KiB chunk stream. The orchestration layer
+adapts their existing results and does not reread or copy the complete file.
+`completed` means processing completed, not that the content is safe. The
+report deliberately has no verdict or risk score and explicitly states that
+format detection is not structural validation, entropy is not maliciousness,
+and textual matches may be benign. Existing upload, fingerprint, and content
+inspection endpoints remain unchanged.
+
+```powershell
+curl.exe -F "file=@sample.pdf;type=application/pdf" http://127.0.0.1:8000/api/v1/static-analyses/
+```
 
 ## Testing and quality gates
 

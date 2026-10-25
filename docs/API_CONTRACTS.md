@@ -3,7 +3,8 @@
 The machine-readable source of truth is the generated OpenAPI document at
 `/openapi.json`. Swagger UI is available at `/docs` and ReDoc at `/redoc`.
 This document summarizes the accepted Phase 01 surface and the implemented
-Phase 02 Checkpoints 02.01-02.03: upload, fingerprint, and content inspection.
+Phase 02 Checkpoints 02.01-02.04: upload, fingerprint, content inspection, and
+unified static analysis.
 
 ## GET `/api/v1/health/`
 
@@ -87,6 +88,8 @@ content type, or incompatible field type.
   extension, and typed consistency state.
 - `ContentInspectionResponse`: fingerprint identity, entropy summary, bounded
   string-extraction statistics, and redacted informational indicators.
+- `StaticAnalysisResponse`: synchronous operation metadata plus composed
+  fingerprint, content, indicator, truncation, provenance, and limitation data.
 
 These are typed API/data contracts, not database models. Models not currently
 referenced by an endpoint remain preparatory and may be reconciled with real
@@ -241,9 +244,75 @@ The endpoint never resolves or visits extracted network locations and never
 executes command text. Raw content and reports are not persisted. Pattern
 matches and entropy are descriptive features, not malware classification.
 
+## POST `/api/v1/static-analyses/`
+
+Coordinates every currently implemented static extractor through the existing
+single-pass content pipeline. Input is `multipart/form-data` with one required
+file part named `file`. Success is HTTP 200 using `StaticAnalysisResponse`:
+
+```json
+{
+  "analysis_id": "f5306fef-f3f3-49bf-b447-b8a9fd09bb17",
+  "analysis_type": "static",
+  "status": "completed",
+  "filename": "sample.pdf",
+  "created_at": "2026-10-25T12:00:00Z",
+  "completed_at": "2026-10-25T12:00:00.001000Z",
+  "fingerprint": {
+    "sha256": "a lowercase 64-character hexadecimal digest",
+    "size_bytes": 1024,
+    "detected_format": "pdf",
+    "format_consistency": "match"
+  },
+  "content": {
+    "entropy": {"shannon_entropy": 6.73, "total_bytes": 1024},
+    "strings": {
+      "observed_count": 12,
+      "retained_count": 10,
+      "truncated": true,
+      "raw_strings_exposed": false,
+      "minimum_length": 4,
+      "maximum_retained_strings": 100,
+      "maximum_characters_per_string": 256
+    }
+  },
+  "indicators": [],
+  "indicators_truncated": false,
+  "analysis_limitations": [
+    {"code": "static_only", "description": "Analysis is limited to static inspection."}
+  ]
+}
+```
+
+The example values are illustrative. `analysis_id` identifies only this
+synchronous operation; there is no persistence and therefore no GET-by-ID.
+`created_at` and `completed_at` are aware UTC timestamps. `status: completed`
+means processing finished, not that the file is clean. No verdict or risk score
+is emitted.
+
+Indicators retain the existing ID, category, description, `printable_ascii`
+source, byte offset, informational severity, and redacted evidence. String and
+indicator truncation remain explicit, so capped evidence is never represented
+as exhaustive. Limitation codes cover static-only scope, non-execution, absence
+of a malware verdict, non-validating format identification, limits of entropy,
+possible benign text matches, and configured processing bounds.
+
+| Condition | HTTP |
+|---|---:|
+| Valid nonempty file at or below the configured limit | 200 |
+| Empty file, missing field, or invalid filename | 422 |
+| File over `ICYLENS_MAX_UPLOAD_BYTES` | 413 |
+| Malformed multipart | Appropriate 4xx |
+| Unexpected processing failure | 500 with a generic detail |
+
+The endpoint uses the same 64 KiB reads, 10 MiB default limit, 4 KiB signature
+window, bounded extraction settings, and unconditional upload cleanup as the
+existing endpoints. It performs no execution, deserialization, network lookup,
+sample/report persistence, malware classification, or scoring.
+
 ## Current limitations
 
-- There is no threat-analysis execution endpoint.
+- There is no dynamic threat-analysis or malware-verdict endpoint.
 - Uploads are validated and discarded; there is no file storage or retrieval.
 - MIME is not trusted or inspected. Mapped extensions are compared only with
   detected leading signatures and never treated as proof of safety.
