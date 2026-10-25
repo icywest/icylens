@@ -2,8 +2,8 @@
 
 The machine-readable source of truth is the generated OpenAPI document at
 `/openapi.json`. Swagger UI is available at `/docs` and ReDoc at `/redoc`.
-This document summarizes the Phase 01 surface; it does not add or promise
-future endpoints.
+This document summarizes the accepted Phase 01 surface and the implemented
+Phase 02 Checkpoints 02.01-02.03: upload, fingerprint, and content inspection.
 
 ## GET `/api/v1/health/`
 
@@ -81,15 +81,180 @@ content type, or incompatible field type.
   and optional result; currently not returned by an endpoint.
 - `AnalysisStatus`, `ThreatVerdict`, and `AnalysisEngine`: shared string enums
   used by those contracts.
+- `UploadResponse`: successful ingestion-operation metadata; its `persisted`
+  field is constrained to `false`.
+- `FingerprintResponse`: SHA-256, measured size, leading-signature evidence,
+  extension, and typed consistency state.
+- `ContentInspectionResponse`: fingerprint identity, entropy summary, bounded
+  string-extraction statistics, and redacted informational indicators.
 
 These are typed API/data contracts, not database models. Models not currently
 referenced by an endpoint remain preparatory and may be reconciled with real
 engine behavior in later phases.
 
-## Phase 01 limitations
+## POST `/api/v1/uploads/`
+
+Validates one untrusted file and discards its bytes. The request media type is
+`multipart/form-data` with a required file part named `file`. Success is HTTP
+201:
+
+```json
+{
+  "upload_id": "7b6412eb-b716-4a5e-b959-e456dc25e9f7",
+  "filename": "sample.txt",
+  "size_bytes": 128,
+  "content_type": "text/plain",
+  "status": "validated",
+  "persisted": false
+}
+```
+
+`upload_id` identifies this ingestion operation only. `content_type` is
+client-declared metadata and may be null or inaccurate; it is not detected truth.
+No malware verdict is produced.
+
+| Condition | HTTP | Detail |
+|---|---:|---|
+| Valid nonempty file at or below the limit | 201 | Typed `UploadResponse` |
+| Empty bytes | 422 | File must not be empty |
+| Missing `file` part | 422 | FastAPI validation response |
+| Invalid filename | 422 | Required, at most 255 printable characters, no path separators, not `.`/`..` |
+| More than `ICYLENS_MAX_UPLOAD_BYTES` | 413 | Configured maximum is included in the detail |
+| Malformed multipart | 4xx | Parser/client error, normally 400 or 422 depending on the defect |
+| Unexpected application failure | 500 | Framework server-error response; no success is fabricated |
+
+The default limit is 10 MiB (10 x 1024 x 1024 bytes). The service uses bounded
+64 KiB reads and observes at most one byte beyond the configured limit. It
+closes the upload on every service exit and retains no bytes. Starlette may
+already have buffered or spooled the part while parsing, so this is not a
+complete HTTP request-size defense.
+
+## POST `/api/v1/fingerprints/`
+
+Calculates deterministic identity and limited format evidence without a second
+file read or persistence. Input is `multipart/form-data` with one required
+`file` part. Success is HTTP 200 using `FingerprintResponse`:
+
+```json
+{
+  "filename": "document.pdf",
+  "sha256": "a lowercase 64-character hexadecimal digest",
+  "size_bytes": 2048,
+  "detected_format": "pdf",
+  "signature_name": "PDF",
+  "extension": ".pdf",
+  "format_consistency": "match",
+  "signature_offset": 0,
+  "signature_hex": "255044462d"
+}
+```
+
+Supported `detected_format` values are `pdf`, `png`, `jpeg`, `gif`, `zip`,
+`pe`, `elf`, and `unknown`. Consistency is `match` only when both a supported
+signature and mapped extension agree, `mismatch` when both are known and
+disagree, and `unknown` when either side cannot be associated. Known extension
+aliases include `.jpg`/`.jpeg` and `.exe`/`.dll`.
+
+The endpoint recognizes PDF, PNG, JPEG, GIF87a/GIF89a, ZIP local/empty/data
+descriptor signatures, ELF, and bounded Windows PE candidates. PE requires a
+checked `e_lfanew` pointer within the retained 4 KiB prefix and `PE\0\0` at the
+target. Recognition does not fully parse or validate a file and does not find
+embedded or unsupported structures. The first supported leading signature has
+deterministic priority for possible polyglot content.
+
+| Condition | HTTP |
+|---|---:|
+| Valid nonempty file at or below the configured limit | 200 |
+| Empty file, missing field, or invalid filename | 422 |
+| File over `ICYLENS_MAX_UPLOAD_BYTES` | 413 |
+| Malformed multipart | Appropriate 4xx |
+| Unexpected server failure | 500 |
+
+SHA-256 and signature extraction occur inside the existing bounded 64 KiB read
+loop. The response is evidence about byte identity and probable leading format,
+not a malware verdict. MIME and filename extension remain client-controlled.
+
+## POST `/api/v1/content-inspections/`
+
+Extracts deterministic static facts during the existing single bounded read
+pass. Input is `multipart/form-data` with one required `file` part. Success is
+HTTP 200 using `ContentInspectionResponse`:
+
+```json
+{
+  "filename": "sample.bin",
+  "size_bytes": 1024,
+  "sha256": "a lowercase 64-character hexadecimal digest",
+  "detected_format": "unknown",
+  "entropy": {
+    "shannon_entropy": 6.73,
+    "total_bytes": 1024
+  },
+  "strings": {
+    "observed_count": 12,
+    "retained_count": 10,
+    "truncated": true,
+    "raw_strings_exposed": false,
+    "minimum_length": 4,
+    "maximum_retained_strings": 100,
+    "maximum_characters_per_string": 256
+  },
+  "indicators": [
+    {
+      "id": "network.url_candidate",
+      "category": "network",
+      "description": "URL-like printable ASCII pattern observed",
+      "source": "printable_ascii",
+      "offset": 120,
+      "evidence": "https://example.test/[redacted]",
+      "severity": "informational"
+    }
+  ],
+  "indicators_truncated": false
+}
+```
+
+`observed_count` is the exact number of printable ASCII runs meeting the
+configured minimum, including runs omitted from retention. `retained_count` is
+the bounded number inspected for indicators; these raw values are not returned.
+`truncated` becomes true when a qualifying run exceeds the per-string limit or
+when the retention-count limit omits a run. `indicators_truncated` states that
+additional distinct bounded evidence existed after the response limit.
+
+Entropy uses all accepted bytes and a fixed 256-counter histogram. String
+encoding is printable ASCII `0x20..0x7E`; Unicode and UTF-16 are unsupported.
+Indicators are informational observations for URL-like patterns, valid IPv4
+candidates, PowerShell/command-interpreter/encoded-command references, and
+executable or script filename references. URL paths/query values and the last
+IPv4 octet are redacted; command evidence contains only matched tokens and file
+evidence only the reference category.
+
+| Condition | HTTP |
+|---|---:|
+| Valid nonempty file at or below the configured limit | 200 |
+| Empty file, missing field, or invalid filename | 422 |
+| File over `ICYLENS_MAX_UPLOAD_BYTES` | 413 |
+| Malformed multipart | Appropriate 4xx |
+| Unexpected server failure | 500 |
+
+The endpoint never resolves or visits extracted network locations and never
+executes command text. Raw content and reports are not persisted. Pattern
+matches and entropy are descriptive features, not malware classification.
+
+## Current limitations
 
 - There is no threat-analysis execution endpoint.
-- There is no multipart upload or file storage.
+- Uploads are validated and discarded; there is no file storage or retrieval.
+- MIME is not trusted or inspected. Mapped extensions are compared only with
+  detected leading signatures and never treated as proof of safety.
+- Signature recognition is intentionally incomplete and is not structural
+  format validation or malware detection.
+- Only printable ASCII strings are inspected, and indicators can be missed
+  after a truncated string preview or retention cap.
+- Extracted evidence may still reveal hostnames or command tokens; API access
+  must be restricted before use with real user data.
+- There is no deployment-level body-size, rate, concurrency, time, memory, or
+  temporary-storage quota in application code.
 - There are no persisted analysis records or job queue.
 - There is no authentication or authorization.
 - Swagger and ReDoc remain enabled in every environment.

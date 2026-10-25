@@ -1,12 +1,12 @@
 # iCYLENS
 
-iCYLENS is an experimental cybersecurity analysis platform. The current phase
-provides a typed FastAPI backend with versioned routes, validated contracts,
-and centralized environment configuration.
+iCYLENS is an experimental cybersecurity analysis platform. Phase 02 now
+provides a typed FastAPI backend with bounded, non-persistent file ingestion
+and deterministic file fingerprinting in addition to the Phase 01 foundation.
 
 Phase 01 baseline: `0.1.0`, technically accepted on 2026-10-25 after an
-independent audit. See the [vision](docs/PROJECT_VISION.md),
-[architecture](docs/ARCHITECTURE.md), [API contracts](docs/API_CONTRACTS.md),
+independent audit. See the [architecture](docs/ARCHITECTURE.md),
+[API contracts](docs/API_CONTRACTS.md),
 [audit report](docs/PHASE_01_AUDIT_REPORT.md), and
 [acceptance record](docs/PHASE_01_ACCEPTANCE.md).
 
@@ -59,6 +59,11 @@ All external variables use the `ICYLENS_` prefix:
 | `ICYLENS_DEBUG` | `false` | FastAPI debug mode; forbidden in production |
 | `ICYLENS_API_V1_PREFIX` | `/api/v1` | Prefix for v1 routes |
 | `ICYLENS_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `ICYLENS_MAX_UPLOAD_BYTES` | `10485760` | Positive upload byte limit; maximum configurable value is 1 GiB |
+| `ICYLENS_INSPECTION_MIN_STRING_LENGTH` | `4` | Minimum printable ASCII run length |
+| `ICYLENS_INSPECTION_MAX_STRINGS` | `100` | Maximum strings retained internally for inspection |
+| `ICYLENS_INSPECTION_MAX_STRING_LENGTH` | `256` | Maximum characters retained from one string |
+| `ICYLENS_INSPECTION_MAX_INDICATORS` | `100` | Maximum returned static indicators |
 
 Operating-system environment variables take precedence over values in `.env`,
 which take precedence over code defaults. Unknown `.env` values are ignored so
@@ -75,6 +80,92 @@ Swagger is available at <http://127.0.0.1:8000/docs> and the health endpoint at
 <http://127.0.0.1:8000/api/v1/health/>. Interactive documentation remains
 available in all environments for this foundation phase. Production rejects
 debug mode, and the default command binds only to the local interface.
+
+## Secure file ingestion
+
+`POST /api/v1/uploads/` accepts one required `file` part as
+`multipart/form-data`. A valid, nonempty file of at most 10 MiB returns HTTP
+201 with a generated operation UUID, its validated original filename, measured
+byte count, client-declared content type, `status: "validated"`, and
+`persisted: false`.
+
+The filename is untrusted metadata. It must be 1-255 printable characters,
+contain no `/` or `\\`, and not equal `.` or `..`. The service reads bounded
+64 KiB chunks, never executes or deserializes the content, and closes and
+discards it after validation. Empty/invalid uploads return 422 and files over
+the configured limit return 413. The declared MIME type is reported but is
+not format detection or a security verdict.
+
+Starlette parses multipart data before the route runs and may spool files over
+1 MiB to a framework-managed temporary file. The application creates no file
+or durable record, and explicitly closes the `UploadFile`; Starlette owns
+cleanup of parser resources. This application limit is not a whole-request
+cap. A reverse proxy or ASGI server request-body limit, concurrency controls,
+timeouts, and OS resource limits remain necessary before public exposure.
+
+## File fingerprinting
+
+`POST /api/v1/fingerprints/` accepts the same required multipart `file` field
+and security policy as ingestion. During the existing single bounded read pass,
+it calculates SHA-256 over the original bytes, measures their size, and retains
+at most the first 4 KiB for signature identification. The bytes are closed and
+discarded after the response.
+
+Supported leading signatures are PDF, PNG, JPEG, GIF87a/GIF89a, three ZIP
+signatures, ELF, and a Windows PE candidate. PE requires `MZ`, a bounded
+little-endian `e_lfanew` value, and `PE\0\0` at that exact location; `MZ` alone
+is insufficient. Other or truncated content is reported as `unknown`.
+
+The result includes the lowercase SHA-256 digest, measured bytes, detected
+format, signature evidence, lowercase filename extension, and `match`,
+`mismatch`, or `unknown` extension consistency. MIME is not used for detection.
+An extension match or recognized signature identifies bytes; it does not prove
+structural validity, safety, or absence of malware. Nested/embedded formats,
+full container validation, uncommon signatures, entropy, strings, YARA, and
+malware classification are not implemented.
+
+Example request:
+
+```powershell
+curl.exe -F "file=@sample.pdf;type=application/pdf" http://127.0.0.1:8000/api/v1/fingerprints/
+```
+
+SHA-256 is an incremental cryptographic digest: matching digests provide strong
+evidence that two byte sequences are identical, but a digest alone says
+nothing about whether those bytes are safe.
+
+## Static content inspection
+
+`POST /api/v1/content-inspections/` accepts the same bounded multipart `file`
+input and performs fingerprinting, entropy accumulation, printable-string
+extraction, and indicator matching during one 64 KiB-chunk read pass. The file
+is closed and discarded afterward.
+
+Byte-level Shannon entropy is calculated as `H(X) = -sum(p(x) * log2(p(x)))`
+from a fixed 256-counter histogram. Results range from 0 bits/byte for one
+repeated value to 8 bits/byte for a balanced byte distribution. High entropy
+can describe compression, encryption, or packing; it is not a malware verdict.
+
+String extraction supports printable ASCII bytes `0x20` through `0x7E` only.
+Runs cross chunk boundaries. At most 100 strings and 256 characters per string
+are retained by default; longer strings keep their first bounded preview, and
+the response explicitly reports truncation. `observed_count` counts every
+qualifying run, while `retained_count` counts the bounded internal subset.
+Raw strings are never returned, logged, or persisted.
+
+Indicators cover URL-like text, valid IPv4 candidates, PowerShell and command
+interpreter references, encoded-command tokens, and executable/script filename
+references. Output is deduplicated, capped, informational, and uses evidence
+redaction: URL paths/query data and the last IPv4 octet are hidden. Matching a
+pattern does not imply malicious behavior, resolve an address, visit a URL, or
+execute a command.
+
+Memory added by inspection is bounded by a 256-counter histogram, the existing
+4 KiB signature prefix, configured retained-string previews, bounded indicator
+evidence, and one read chunk. Unicode/UTF-16 strings, embedded decoding, YARA,
+full parsing, verdicts, and risk scoring are not supported. Before inspecting
+real user files, restrict API access and add deployment-level request,
+concurrency, time, memory, and temporary-storage controls.
 
 ## Testing and quality gates
 

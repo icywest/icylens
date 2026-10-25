@@ -5,9 +5,9 @@
 iCYLENS `0.1.0` currently provides a Python 3.12/3.13 backend foundation. The
 implemented system is intentionally small: FastAPI exposes versioned HTTP
 routes, Pydantic defines request and response contracts, and
-`pydantic-settings` supplies typed configuration. There are no analysis
-engines, databases, file-processing pipelines, or external service clients in
-Phase 01.
+`pydantic-settings` supplies typed configuration. Checkpoint 02.01 adds a
+non-persistent upload-validation pipeline. There are no analysis engines,
+databases, durable file stores, or external service clients.
 
 The backend lives in `apps/api`:
 
@@ -81,8 +81,8 @@ main → v1 router → route modules → schemas → shared enums
 ```
 
 No circular application imports were found during Phase 01 acceptance.
-`services` and `engines` remain empty namespaces so future business logic does
-not need to be placed in route handlers.
+`services` now coordinates resource lifecycle, while `engines.static` contains
+deterministic byte processing and keeps business logic outside route handlers.
 
 ## Testing and quality
 
@@ -108,20 +108,112 @@ execution, and returns a nonzero status when a mandatory check fails.
 
 ## Planned integrations—not implemented
 
-Phase 02 may introduce a Static Analysis Engine under `app/engines`, with
-orchestration under `app/services`. Later phases may add Machine Learning,
+Phase 02 now contains bounded ingestion and fingerprinting under `app/engines`
+with lifecycle orchestration under `app/services`. Later phases may add Machine Learning,
 Vulnerability Intelligence, Behavioral Analysis, and Correlation engines.
 Their results can map to the existing `EngineResult` and `AnalysisResult`
 contracts after those contracts are reviewed against real requirements.
 
-Phase 02 must treat any client-supplied filename as untrusted metadata only:
-use server-generated storage names, enforce maximum bytes and format allowlists,
-reject or handle NUL/control characters, avoid following symlinks without
-policy, operate in a temporary location with cleanup, and never execute
-uploaded content. Authentication, authorization, resource limits, timeouts,
-and sandboxing remain out of scope for Phase 01 but should be addressed before
-processing untrusted files.
+Client-supplied filenames remain untrusted metadata only. Current code enforces
+maximum bytes, rejects NUL/control characters and path separators, performs no
+application storage, and never executes uploaded content. Authentication,
+authorization, deployment resource limits, interrupting timeouts, and
+sandboxing remain outside this checkpoint.
 
 An Astro frontend may eventually consume the FastAPI OpenAPI contract. It is
 not present, and no CORS policy has been introduced. Likewise, the placeholder
 engine names in enums do not imply that any engine is operational.
+
+## Phase 02 Checkpoint 01 architecture
+
+The v1 router now also registers `api/v1/routes/uploads.py`.
+`schemas/upload.py` defines the typed response, while
+`services/ingestion.py` owns filename validation, bounded reading, byte-limit
+enforcement, operation-ID generation, and cleanup. The route owns only HTTP
+binding and known-error-to-status mapping. `Settings.MAX_UPLOAD_BYTES` extends
+the existing settings instance; no second loader or settings singleton exists.
+
+The service reads no more than 64 KiB per operation and stops after observing
+one byte beyond the configured ceiling. It closes `UploadFile` in a `finally`
+block. It never executes, deserializes, logs, sends, or writes uploaded bytes.
+The original filename remains untrusted metadata and is never a filesystem
+path. No application-managed payload survives the request.
+
+FastAPI/Starlette parses multipart content before calling the route. In the
+validated Starlette 1.10 environment, file parts use a spooled temporary file
+with a 1 MiB in-memory threshold; Starlette owns parser-error cleanup, and the
+service explicitly closes the resulting upload on normal and service-error
+paths. This framework-managed spool is not application persistence. The 10 MiB
+service limit does not cap the complete HTTP body before parsing, and parser
+metadata/other parts consume resources too.
+
+Before public exposure, deployment infrastructure must add a whole-request
+size cap, concurrency/rate limits, interrupting timeouts, process memory/CPU
+limits, and temporary-storage quotas. Future format parsers will introduce new
+attack surfaces and require their own limits. Checkpoint 02.02 can compute
+SHA-256 by updating a hash object for each already bounded chunk before the
+chunk is discarded; no second full-file buffer is required.
+
+## Phase 02 Checkpoint 02 architecture
+
+`api/v1/routes/fingerprints.py` exposes a separate endpoint so the established
+upload response remains unchanged. Both endpoints call the same private
+ingestion read loop. Upload ingestion supplies no chunk consumer; fingerprint
+ingestion supplies `FingerprintAccumulator.update`. Consequently, hashing,
+size measurement, and prefix collection occur during one application-level
+read pass with the same 64 KiB and configured maximum-size controls.
+
+`engines/static/fingerprint.py` owns incremental SHA-256, the bounded 4 KiB
+prefix, extension mapping, and consistency rules. `signatures.py` owns a small
+explicit magic registry and bounded PE pointer validation. The typed response
+is isolated in `schemas/fingerprint.py`; it contains no malware verdict, score,
+or future ML contract.
+
+Only leading magic is recognized. A polyglot is labeled by the first supported
+leading signature, ZIP containers are not opened, PE is only a candidate, and
+no structure is declared valid or safe. The fixed 4 KiB prefix adds bounded
+application memory beyond hashing state and a 64 KiB read chunk. Existing
+multipart pre-buffering/spooling, whole-request, concurrency, timeout, and
+temporary-storage limitations remain unchanged from Checkpoint 02.01.
+
+The digest and format evidence can become deterministic inputs and labels for
+later feature pipelines or ML datasets. They must be combined with provenance,
+quality controls, and future features; neither hashes nor extensions are
+malware labels.
+
+## Phase 02 Checkpoint 03 architecture
+
+`services.ingestion.consume_upload` now owns validation, the single 64 KiB
+read loop, and unconditional resource cleanup. Its optional synchronous chunk
+callback is the minimal observer boundary shared by upload, fingerprint, and
+content-inspection services. It does not expose FastAPI inside analytical
+engines and does not buffer the complete payload.
+
+`services.content_inspection` composes three incremental consumers:
+
+1. `FingerprintAccumulator` for SHA-256, size, and the 4 KiB signature prefix.
+2. `EntropyAccumulator` for a fixed 256-bin byte-frequency histogram.
+3. `PrintableStringExtractor` for cross-chunk ASCII state and bounded previews.
+
+After EOF, the service finalizes string state and inspects only the bounded
+retained subset. Indicator regular expressions use finite character classes
+and explicit maximum lengths; literal command matching is non-recursive.
+Duplicate ID/evidence pairs are suppressed and output is capped. URL parsing
+is local only and malformed candidates fall back to redacted evidence.
+
+Default retained inspection memory is bounded by 100 x 256 string characters,
+100 indicators with evidence capped at 96 characters, the 256-counter entropy
+histogram, the 4 KiB signature prefix, and one 64 KiB read chunk. Configured
+upper bounds remain finite. Time is O(n) for byte histogram/string extraction,
+plus bounded post-processing of retained text.
+
+The response intentionally excludes raw extracted strings. It exposes exact
+observed and retained counts, truncation flags, redacted evidence, and original
+byte offsets for reported patterns. Evidence exists to support later detection
+engineering and feature-vector construction; it is not a verdict or training
+label by itself.
+
+Starlette still parses/spools multipart content before application processing.
+Application bounds do not replace proxy body limits, authentication,
+authorization, concurrency/rate controls, interrupting timeouts, process
+limits, or temporary-storage quotas.

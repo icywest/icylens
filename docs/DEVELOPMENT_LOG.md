@@ -1,5 +1,65 @@
 # iCYLENS Development Log
 
+## Phase 02 / Checkpoint 03: Entropy and Content Inspection
+
+Status: PASS - 175 tests passed (43 added across engine, API, configuration,
+security, and regression coverage), statement and branch coverage reached 100%,
+and Ruff lint/format, strict mypy, `pip check`, and the unified Quality Gate
+passed on 2026-10-25.
+
+- Added `POST /api/v1/content-inspections/` with a typed, non-persistent report.
+- Added an incremental 256-bin Shannon entropy engine.
+- Added cross-chunk printable ASCII extraction with exact observed counts,
+  bounded retained previews, original offsets, and explicit truncation state.
+- Added bounded informational URL, IPv4, command, executable, and script
+  indicators with duplicate suppression and redacted evidence.
+- Refactored ingestion cleanup into one shared consumer so upload,
+  fingerprinting, and inspection preserve a single bounded read pass.
+- Added centralized inspection bounds and deterministic synthetic tests.
+
+Raw extracted strings are not exposed, logged, or persisted. No verdict, risk
+score, YARA, ML, CVE intelligence, storage, network lookup, or execution was
+introduced.
+
+## Phase 02 / Checkpoint 02: File Fingerprinting
+
+Status: PASS - 132 tests passed (48 new fingerprint tests), statement and branch
+coverage reached 100%, and Ruff lint/format, strict mypy, `pip check`, and the
+unified Quality Gate passed on 2026-10-25.
+
+- Added `POST /api/v1/fingerprints/` without changing the upload contract.
+- Added incremental SHA-256 and actual byte counting to the existing single
+  bounded read pass.
+- Added explicit PDF, PNG, JPEG, GIF, ZIP, ELF, and bounded PE-candidate magic
+  identification with 4 KiB maximum retained signature data.
+- Added typed signature evidence and extension consistency states: `match`,
+  `mismatch`, and `unknown`.
+- Added safe synthetic engine, API, boundary, security, cleanup, and regression
+  tests; no live samples or external services are used.
+
+No entropy, strings, YARA, malware classification, ML, CVE correlation,
+persistence, database, history, sandbox, or content execution was introduced.
+
+## Phase 02 / Checkpoint 01: Secure File Ingestion
+
+Status: PASS - 84 tests passed (22 upload tests), statement and branch coverage
+reached 100%, and Ruff lint/format, strict mypy, `pip check`, and the unified
+Quality Gate passed on 2026-10-25.
+
+- Added `POST /api/v1/uploads/` with a typed HTTP 201 response and explicit
+  `persisted: false` semantics.
+- Added reusable filename validation, configurable 10 MiB maximum size,
+  bounded 64 KiB reads, empty/oversize rejection, and deterministic cleanup.
+- Declared `python-multipart` as a direct runtime dependency.
+- Added functional, adversarial, configuration, cleanup, regression, and
+  OpenAPI tests without weakening existing quality settings.
+- Documented framework spooling and the residual need for deployment-level
+  request, concurrency, timeout, memory, and temporary-storage controls.
+
+No hashing, signature parsing, malware classification, persistence, database,
+job queue, authentication, external network integration, or executable content
+handling was introduced.
+
 ## Phase 01 — Step 04: Backend Configuration & Environment Management
 
 Status: PASS — 29 tests passed, Ruff passed, dependency integrity passed, and
