@@ -293,6 +293,9 @@ def test_openapi_contains_checkpoint_contracts_once(client: TestClient) -> None:
     assert set(schema["paths"]) == {
         "/api/v1/health/",
         "/api/v1/analyses/validate",
+        "/api/v1/uploads/",
+        "/api/v1/fingerprints/",
+        "/api/v1/content-inspections/",
     }
     assert "AnalysisRequest" in schema["components"]["schemas"]
     assert "HealthResponse" in schema["components"]["schemas"]

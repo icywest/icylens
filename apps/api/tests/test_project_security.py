@@ -30,6 +30,11 @@ def test_env_example_contains_only_documented_non_secret_settings() -> None:
         "ICYLENS_APP_VERSION",
         "ICYLENS_DEBUG",
         "ICYLENS_LOG_LEVEL",
+        "ICYLENS_MAX_UPLOAD_BYTES",
+        "ICYLENS_INSPECTION_MIN_STRING_LENGTH",
+        "ICYLENS_INSPECTION_MAX_STRINGS",
+        "ICYLENS_INSPECTION_MAX_STRING_LENGTH",
+        "ICYLENS_INSPECTION_MAX_INDICATORS",
     }
 
 

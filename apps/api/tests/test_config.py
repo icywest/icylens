@@ -21,6 +21,11 @@ def test_default_settings_without_env_file() -> None:
     assert settings.DEBUG is False
     assert settings.API_V1_PREFIX == "/api/v1"
     assert settings.LOG_LEVEL == "INFO"
+    assert settings.MAX_UPLOAD_BYTES == 10 * 1024 * 1024
+    assert settings.INSPECTION_MIN_STRING_LENGTH == 4
+    assert settings.INSPECTION_MAX_STRINGS == 100
+    assert settings.INSPECTION_MAX_STRING_LENGTH == 256
+    assert settings.INSPECTION_MAX_INDICATORS == 100
 
 
 def test_environment_variables_override_env_file(
@@ -57,6 +62,39 @@ def test_boolean_environment_conversion(
 def test_invalid_application_environment_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(APP_ENV="staging", _env_file=None)
+
+
+@pytest.mark.parametrize("maximum", [0, -1, 1024 * 1024 * 1024 + 1])
+def test_invalid_upload_limit_is_rejected(maximum: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(MAX_UPLOAD_BYTES=maximum, _env_file=None)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("INSPECTION_MIN_STRING_LENGTH", 0),
+        ("INSPECTION_MIN_STRING_LENGTH", 257),
+        ("INSPECTION_MAX_STRINGS", 0),
+        ("INSPECTION_MAX_STRINGS", 1001),
+        ("INSPECTION_MAX_STRING_LENGTH", 0),
+        ("INSPECTION_MAX_STRING_LENGTH", 4097),
+        ("INSPECTION_MAX_INDICATORS", 0),
+        ("INSPECTION_MAX_INDICATORS", 1001),
+    ],
+)
+def test_invalid_inspection_limits_are_rejected(field: str, value: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(**{field: value}, _env_file=None)
+
+
+def test_string_maximum_must_cover_minimum() -> None:
+    with pytest.raises(ValidationError, match="must be greater than or equal"):
+        Settings(
+            INSPECTION_MIN_STRING_LENGTH=10,
+            INSPECTION_MAX_STRING_LENGTH=9,
+            _env_file=None,
+        )
 
 
 def test_invalid_boolean_is_rejected() -> None:
@@ -158,6 +196,7 @@ def test_settings_cache_can_be_isolated_between_tests(
         "ICYLENS_DEBUG": "false",
         "ICYLENS_API_V1_PREFIX": "/api/v1",
         "ICYLENS_LOG_LEVEL": "INFO",
+        "ICYLENS_MAX_UPLOAD_BYTES": "10485760",
     }
     for variable, value in controlled_environment.items():
         monkeypatch.setenv(variable, value)
