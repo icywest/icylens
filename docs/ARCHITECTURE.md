@@ -359,3 +359,38 @@ Its only grouping guarantee is exact SHA-256 identity. Family, campaign,
 source-cluster, and near-duplicate leakage remain explicit future controls.
 There is still no model training, inference, evaluation, FastAPI ML route,
 database, cloud storage, or executable-sample persistence.
+
+## Phase 03 Checkpoint 03.03 offline training
+
+The training boundary consumes only dataset artifacts that pass the Phase 03.02
+loader and repeats integrity/eligibility checks before matrix construction:
+
+```text
+verified manifest + records
+  -> training eligibility and resource limits
+  -> 14-field feature matrix
+  -> per-model ColumnTransformer + estimator Pipeline
+  -> fit(training)
+  -> predict/metrics(validation)
+  -> typed experiment report
+  -> staged local model artifacts with byte-level integrity descriptors
+```
+
+`ml/preprocessing.py` owns deterministic type conversion, explicit categorical
+domains, one-hot encoding, and the stable 23-column transformed contract.
+`ml/models.py` owns the three bounded candidate factories. `ml/training.py`
+owns eligibility, partition isolation, fitting, validation metrics, and runtime
+metadata. `ml/experiments.py` owns non-overwriting staged persistence and
+byte-level verification without deserialization. `schemas/ml_experiment.py`
+owns configuration, metrics, report, and artifact contracts. The local
+`scripts/train_models.py` CLI composes these layers without FastAPI.
+
+Numeric scaling exists only in the Logistic Regression pipeline; both tree
+pipelines retain numeric scale. Explicit one-hot categories avoid ordinal
+semantics and stabilize output width. Only training is fitted, validation is
+transformed, and test features are never constructed in this checkpoint.
+
+Joblib artifacts are pickle-compatible and therefore trusted-local-only. The
+application contains no generic model loader, serving endpoint, test evaluation,
+hyperparameter search, SHAP, or malware verdict. Future inference must admit a
+compatible trusted experiment and reuse its complete fitted Pipeline.

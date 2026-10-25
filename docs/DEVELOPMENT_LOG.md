@@ -1,5 +1,30 @@
 # iCYLENS Development Log
 
+## Phase 03 / Checkpoint 03.03: Reproducible Baseline Training
+
+Status: PASS - 315 tests passed (31 focused training cases added), total
+statement/branch coverage reached 95.07%, and Ruff lint/format, strict mypy,
+`pip check`, API regressions, and the unified Quality Gate passed on 2026-10-25.
+
+- Added compatible NumPy, scikit-learn, and joblib runtime dependencies for
+  Python 3.13 and verified the installed dependency closure.
+- Added deterministic 14-input/23-output preprocessing with explicit one-hot
+  categories, float booleans, Logistic scaling, and tree passthrough.
+- Added bounded Logistic Regression, Random Forest, and HistGradientBoosting
+  candidates under a common Pipeline interface with seeded configuration.
+- Added repeated dataset integrity/admission checks, synthetic/research modes,
+  per-class minimums, training-only fit, validation-only metrics, and sealed
+  test behavior.
+- Added typed experiment reports with environment/configuration identity,
+  exploratory metrics, undefined-metric disclosure, and explicit absence of
+  scientific representativeness.
+- Added staged non-overwriting joblib export, per-model size/digest checks,
+  byte-only verification without deserialization, cleanup, and a local CLI.
+
+No test-set evaluation, hyperparameter search, serving/inference endpoint,
+model verdict, external dataset, sample execution, CVE/MITRE integration,
+behavioral analysis, or cloud infrastructure was introduced.
+
 ## Phase 03 / Checkpoint 03.02: Reproducible Dataset Builder
 
 Status: PASS - 284 tests passed (54 focused pipeline cases added), total

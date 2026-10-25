@@ -90,3 +90,16 @@ versions before splitting and serializes the version into both split
 configuration and manifest. Canonical records retain the nested feature object;
 the later trainer must verify artifact integrity and call the established
 ordered-vector contract rather than relying on incidental JSON key order.
+
+## Training transformation contract
+
+Phase 03.03 converts the ordered 14 inputs into 23 float columns. The first five
+numeric features remain individual columns; the two categorical features become
+11 explicit one-hot columns across all supported contract categories; and the
+seven booleans become stable 0/1 columns. This width is checked after fitting.
+
+Logistic Regression standardizes only numeric columns. Random Forest and
+HistGradientBoosting preserve numeric scale. Encoding, scaling, and estimator
+are one fitted Pipeline so future inference cannot accidentally use different
+preprocessing. Identity, labels, provenance, splits, timestamps, and dataset
+metadata remain excluded.

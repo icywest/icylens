@@ -140,3 +140,17 @@ never overwrite an existing dataset version, and contain metadata records only.
 Their digest supports integrity/reproducibility checks but is not a publisher
 signature or a defense against an attacker who can replace both data and
 manifest.
+
+## Training admission
+
+Phase 03.03 repeats dataset digest, schema, extraction-version, identity, split,
+label, provenance, class-support, and resource checks before fitting. Explicit
+synthetic records may exercise infrastructure only under `synthetic_demo`;
+synthetic and non-synthetic evidence cannot be mixed, and synthetic metrics
+cannot support detection claims. Non-synthetic eligibility still does not prove
+scientific representativeness.
+
+The training service fits only the training split and computes exploratory
+metrics only on validation. Test records are checked for split custody and class
+presence but their features are not transformed or predicted. Test evaluation
+requires the separate Phase 03.04 protocol.

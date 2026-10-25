@@ -226,6 +226,15 @@ and writes versioned artifacts without overwrite. Generated artifacts under
 [`docs/ML_DATASET_PIPELINE.md`](docs/ML_DATASET_PIPELINE.md) for the format,
 security limits, CLI commands, and integrity policy.
 
+Phase 03.03 adds an offline training CLI for three bounded baselines: Logistic
+Regression, Random Forest, and HistGradientBoosting. Each model owns its fitted
+`ColumnTransformer` inside a scikit-learn `Pipeline`; preprocessing fits on
+training only, exploratory metrics use validation only, and test remains sealed.
+Experiments are staged under the ignored `experiments/generated/` tree and are
+never overwritten. See
+[`docs/ML_TRAINING_PIPELINE.md`](docs/ML_TRAINING_PIPELINE.md). Synthetic smoke
+metrics are explicitly not evidence of real malware detection performance.
+
 ## Testing and quality gates
 
 The suite uses pytest markers to make its intent explicit:
