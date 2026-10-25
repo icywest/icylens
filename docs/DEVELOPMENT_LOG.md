@@ -1,5 +1,29 @@
 # iCYLENS Development Log
 
+## Phase 03 / Checkpoint 03.01: ML Dataset Governance & Feature Contracts
+
+Status: PASS - 230 tests passed (22 focused ML contract and validation cases
+added), total statement/branch coverage reached 98.87%, and Ruff lint/format,
+strict mypy, `pip check`, and the unified Quality Gate passed on 2026-10-25.
+
+- Established feature schema `1.0.0` with a stable 14-field predictive order,
+  strict domains, explicit unknown categories, and truncation metadata.
+- Added a deterministic, FastAPI-independent adapter over the existing typed
+  static report; it performs no upload read, parsing, labeling, or inference.
+- Separated sample identity, predictive features, labels, provenance,
+  extraction settings, and split assignment in the dataset record contract.
+- Added explicit `benign`, `malicious`, and `unknown` labels, conservative
+  supervised-training eligibility, and synthetic-label identification.
+- Added validation for malformed records, unsupported provenance, exact
+  duplicates, conflicting labels, cross-split overlap, duplicate IDs, and
+  repeated synthetic templates without silently repairing data.
+- Added a safe three-record synthetic fixture and comprehensive governance,
+  feature-contract, architecture, and acceptance documentation.
+
+No classifier, fitting, evaluation, prediction endpoint, verdict, score,
+external dataset, executable sample, CVE intelligence, MITRE mapping,
+behavioral analysis, persistence, or new infrastructure was introduced.
+
 ## Phase 02 / Checkpoint 05: Analysis Lifecycle and Contract Hardening
 
 Status: PASS - 208 tests passed (16 focused lifecycle and contract cases

@@ -290,3 +290,36 @@ same bounded feature pipeline, and retrieval could expose a persisted report.
 None of those semantics are simulated by the current endpoint. An Astro client
 can use generated OpenAPI types now, submit multipart data, branch on HTTP
 status, and render evidence plus limitations from a completed response.
+
+## Phase 03 Checkpoint 03.01 ML data boundary
+
+The ML foundation is an offline, framework-independent consumer of the Phase
+02 report, not a new HTTP capability:
+
+```text
+StaticAnalysisResponse + explicit extraction settings
+  -> deterministic feature adapter (no byte reads)
+  -> MLFeatureVector 1.0.0 (ordered observations only)
+  -> MLDatasetRecord
+       identity | features | label | provenance | extraction | split
+  -> dataset validation (record errors, warnings, dataset errors)
+```
+
+`schemas/ml_features.py` owns strict feature names, domains, version, and
+ordering. `schemas/ml_dataset.py` owns the separated record contract.
+`ml/features.py` maps existing indicator IDs without importing FastAPI, while
+`ml/validation.py` checks eligibility, exact duplicates, label conflicts,
+cross-split overlap, provenance, and repeated synthetic templates.
+
+All schema `1.0.0` feature values are mandatory. Missing data is rejected
+instead of imputed, and bounded observations retain explicit truncation flags.
+SHA-256 is used only for identity/deduplication. The record hierarchy prevents
+labels, source metadata, split assignment, analysis UUIDs, timestamps, and
+filenames from entering the declared predictive order.
+
+The validator protects exact-hash isolation but cannot identify near-duplicate
+or malware-family leakage. A later dataset builder must add deliberate grouped
+and temporal split policy, source diversity analysis, immutable manifests, and
+sealed test-set custody before training. There is currently no training,
+inference, evaluation, endpoint, persistence, CVE intelligence, MITRE mapping,
+or behavioral analysis.

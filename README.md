@@ -204,6 +204,20 @@ today. A planned Astro client can consume the current OpenAPI schema directly,
 treat 200 as a completed computation, and render limitations and errors without
 interpreting completion as a security verdict.
 
+## ML data foundation
+
+Phase 03 starts with data governance rather than model training. The backend
+now defines feature schema `1.0.0`, a framework-independent adapter from the
+existing static report, strict dataset records, supervised-training eligibility
+rules, and dataset-level leakage checks. SHA-256, labels, provenance, split,
+filenames, UUIDs, and timestamps are not predictive inputs.
+
+The committed ML fixture is safe synthetic metadata, remains `unassigned`, and
+exists only to test validation and serialization. No classifier, prediction
+endpoint, score, external dataset, or executable sample is included. See
+[`docs/ML_FEATURE_CONTRACT.md`](docs/ML_FEATURE_CONTRACT.md) and
+[`docs/ML_DATASET_GOVERNANCE.md`](docs/ML_DATASET_GOVERNANCE.md).
+
 ## Testing and quality gates
 
 The suite uses pytest markers to make its intent explicit:
