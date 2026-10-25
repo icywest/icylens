@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import math
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from uuid import UUID
@@ -89,6 +89,8 @@ def test_report_has_aware_ordered_timestamps_and_stable_limitations(
 
     assert created.utcoffset() is not None
     assert completed.utcoffset() is not None
+    assert created.utcoffset() == timedelta(0)
+    assert completed.utcoffset() == timedelta(0)
     assert created <= completed
     assert [item["code"] for item in body["analysis_limitations"]] == [
         item.code for item in ANALYSIS_LIMITATIONS
@@ -103,6 +105,128 @@ def test_response_schema_rejects_naive_timestamps(client: TestClient) -> None:
 
     with pytest.raises(ValidationError, match="timezone-aware"):
         StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+def test_response_schema_rejects_non_utc_timestamps(client: TestClient) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["completed_at"] = datetime(
+        2026,
+        10,
+        25,
+        12,
+        tzinfo=timezone(timedelta(hours=-6)),
+    ).isoformat()
+
+    with pytest.raises(ValidationError, match="must use UTC"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+def test_response_schema_rejects_reversed_timestamps(client: TestClient) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["created_at"] = "2026-10-25T12:00:01Z"
+    body["completed_at"] = "2026-10-25T12:00:00Z"
+
+    with pytest.raises(ValidationError, match="must not be earlier"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+def test_response_schema_rejects_mismatched_byte_counts(client: TestClient) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["content"]["entropy"]["total_bytes"] += 1
+
+    with pytest.raises(ValidationError, match="same input"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+def test_response_schema_rejects_invalid_analysis_id(client: TestClient) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["analysis_id"] = "not-a-uuid"
+
+    with pytest.raises(ValidationError, match="uuid_parsing"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("value", ["A" * 64, "0" * 63])
+def test_response_schema_rejects_invalid_sha256(
+    client: TestClient,
+    value: str,
+) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["fingerprint"]["sha256"] = value
+
+    with pytest.raises(ValidationError, match="string_pattern_mismatch"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+def test_response_schema_rejects_invalid_entropy(client: TestClient) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["content"]["entropy"]["shannon_entropy"] = 8.01
+
+    with pytest.raises(ValidationError, match="less_than_equal"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+def test_response_schema_prevents_raw_string_exposure(client: TestClient) -> None:
+    body = post_analysis(client, b"safe content").json()
+    body["content"]["strings"]["raw_strings_exposed"] = True
+
+    with pytest.raises(ValidationError, match="literal_error"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "location",
+    [
+        "report",
+        "fingerprint",
+        "content",
+        "entropy",
+        "strings",
+        "indicator",
+        "limitation",
+    ],
+)
+def test_response_schema_forbids_unknown_fields(
+    client: TestClient,
+    location: str,
+) -> None:
+    body = post_analysis(client, b"PowerShell reference").json()
+    if location == "report":
+        body["unexpected"] = "value"
+    elif location == "fingerprint":
+        body["fingerprint"]["unexpected"] = "value"
+    elif location == "content":
+        body["content"]["unexpected"] = "value"
+    elif location == "entropy":
+        body["content"]["entropy"]["unexpected"] = "value"
+    elif location == "strings":
+        body["content"]["strings"]["unexpected"] = "value"
+    elif location == "indicator":
+        body["indicators"][0]["raw_string"] = "must not be accepted"
+    else:
+        body["analysis_limitations"][0]["unexpected"] = "value"
+
+    with pytest.raises(ValidationError, match="extra_forbidden"):
+        StaticAnalysisResponse.model_validate(body)
+
+
+@pytest.mark.contract
+def test_analysis_ids_are_unique_and_not_retrievable(client: TestClient) -> None:
+    first = post_analysis(client, b"same content").json()
+    second = post_analysis(client, b"same content").json()
+
+    assert first["analysis_id"] != second["analysis_id"]
+    assert (
+        client.get(f"/api/v1/static-analyses/{first['analysis_id']}").status_code == 404
+    )
 
 
 @pytest.mark.integration
@@ -279,16 +403,24 @@ def test_unexpected_failure_is_generic_and_closes_upload(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    logged: list[tuple[str, str]] = []
+
     async def fail(*args: object, **kwargs: object) -> StaticAnalysisResponse:
         del args, kwargs
         raise RuntimeError("sensitive internal context")
 
+    def record_error(message: str, exception_type: str) -> None:
+        logged.append((message, exception_type))
+
     monkeypatch.setattr(static_analyses_route, "analyze_static_upload", fail)
+    monkeypatch.setattr(static_analyses_route.logger, "error", record_error)
     response = post_analysis(client, b"safe")
 
     assert response.status_code == 500
     assert response.json() == {"detail": "Static analysis could not be completed."}
     assert "sensitive" not in response.text
+    assert logged == [("Static analysis failed with exception type %s", "RuntimeError")]
+    assert "sensitive" not in str(logged)
 
 
 @pytest.mark.security
