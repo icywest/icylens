@@ -418,3 +418,26 @@ analysis, or selection. The CLI retrains and evaluates in one controlled local
 process rather than loading pickle-compatible joblib. There are no new FastAPI
 routes, model registry, promotion, final test evaluation, local contribution
 narratives, SHAP, calibration fit, or security risk score.
+
+## Phase 03 Checkpoint 03.05 trusted local inference
+
+The v1 router now includes a disabled-by-default ML inference route. Application
+lifespan owns `TrustedModelRuntime`: with explicit demo configuration, it builds
+and verifies deterministic synthetic metadata, invokes existing training once,
+validates a fitted Pipeline, and registers Logistic Regression locally. Failure
+leaves the runtime rejected/unavailable; shutdown revokes and clears it.
+
+```text
+multipart file
+  -> existing analyze_static_upload (single bounded read + cleanup)
+  -> extract_ml_features (schema 1.0.0)
+  -> shared canonical 14-feature row
+  -> one trusted in-memory Pipeline (bounded thread admission)
+  -> strict synthetic-demo response
+```
+
+`services/ml_inference.py` owns availability, non-queuing capacity, existing
+static-service composition, thread offload, feature extraction, and response
+assembly. `ml/model_runtime.py` owns lifecycle, compatibility and probability
+validation. No request can train, name a model path, deserialize an artifact,
+access test, select another candidate, or obtain an operational verdict.

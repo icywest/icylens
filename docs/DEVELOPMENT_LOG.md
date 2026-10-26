@@ -1,5 +1,29 @@
 # iCYLENS Development Log
 
+## Phase 03 / Checkpoint 03.05: Trusted Local ML Inference
+
+Status: PASS - 388 tests passed (36 focused inference cases added), total
+statement/branch coverage reached 93.91%, and Ruff lint/format, strict mypy,
+`pip check`, regressions, and the unified Quality Gate passed on 2026-10-25.
+
+- Added disabled-by-default inference/demo settings and bounded non-queuing
+  concurrency.
+- Added governed synthetic metadata initialization during lifespan, explicit
+  lifecycle transitions, rejection, and shutdown revocation.
+- Added strict fitted-Pipeline validation for estimator, classes, schema, exact
+  23-column preprocessing, probability support, and demo authorization.
+- Added single-pass static-analysis reuse through the canonical 14 features to
+  one reused in-memory Logistic Regression Pipeline.
+- Added strict demo-only response contracts and `POST /api/v1/ml-inferences/`
+  with safe 413/422/429/503/500 behavior.
+- Added compatibility, lifecycle, probability, cleanup, capacity,
+  no-training/no-loading, reproducibility, OpenAPI, regression, and real
+  loopback-Uvicorn validation.
+
+No generic model loading, request-time training, test evaluation, SHAP, risk
+score, operational verdict, public deployment, external service, or persistent
+sample storage was introduced.
+
 ## Phase 03 / Checkpoint 03.04: Model Evaluation and Explainability
 
 Status: PASS - 352 tests passed (37 focused evaluation cases added), total

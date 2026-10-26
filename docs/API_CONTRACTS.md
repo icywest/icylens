@@ -6,6 +6,24 @@ This document summarizes the accepted Phase 01 surface and the implemented
 Phase 02 Checkpoints 02.01-02.04: upload, fingerprint, content inspection, and
 unified static analysis.
 
+## POST `/api/v1/ml-inferences/`
+
+Accepts one multipart `file`. It is unavailable unless both
+`ICYLENS_ML_INFERENCE_ENABLED` and `ICYLENS_ML_DEMO_MODE_ENABLED` are explicitly
+true and lifespan registration succeeds.
+
+Success returns strict `MLInferenceResponse` with inference/analysis UUIDs,
+`synthetic_demo`, `demo_only: true`, a binary model label, benign/malicious
+probabilities, `probability_calibrated: false`, trusted model provenance, and
+five mandatory limitations. The label is model output, not a `safe`, `clean`,
+malware verdict, or risk score. No filename, hash, content, extracted string,
+source path, or local explanation is returned.
+
+Errors are 413 for upload limit, 422 for empty/invalid input, 429 for full
+capacity, 503 for disabled/unavailable inference, and generic 500 for unexpected
+failures. Missing/malformed multipart is a client 4xx. The request contains no
+model path, artifact, dataset, or candidate field.
+
 ## GET `/api/v1/health/`
 
 Reports that the API process is operational.

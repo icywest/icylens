@@ -150,3 +150,9 @@ A later inference boundary must reuse the complete fitted `Pipeline`, not
 independently recreate encoding or scaling. Safe artifact admission,
 authenticity, compatibility, and pickle-aware loading remain mandatory reviews
 before serving.
+
+Phase 03.05 does not load joblib exports. Its explicitly enabled synthetic demo
+recreates a governed dataset and fitted Pipelines once during lifespan,
+validates compatibility, and registers one in memory. Requests reuse that
+object and cannot trigger training. This educational bridge is not trusted
+artifact admission or operational promotion.

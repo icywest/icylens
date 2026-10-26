@@ -244,6 +244,14 @@ Generated reports under `evaluations/generated/` are ignored by Git. See
 [`docs/ML_MODEL_EVALUATION.md`](docs/ML_MODEL_EVALUATION.md). Synthetic results
 remain technical smoke tests and cannot authorize model selection or deployment.
 
+Phase 03.05 adds `POST /api/v1/ml-inferences/` for an explicitly enabled local
+synthetic demonstration. Lifespan initialization builds a governed metadata-only
+dataset, trains once, validates one trusted in-memory Pipeline, and reuses it;
+HTTP requests never train or load serialized models. Defaults keep inference
+and demo mode disabled. See
+[`docs/ML_INFERENCE_API.md`](docs/ML_INFERENCE_API.md). Launch a demonstration
+with explicit `--host 127.0.0.1`; public exposure is not authorized.
+
 ## Testing and quality gates
 
 The suite uses pytest markers to make its intent explicit:

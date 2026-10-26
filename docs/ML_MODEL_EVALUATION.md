@@ -175,3 +175,11 @@ JSON artifact. There is no network, cloud execution, executable-sample access,
 SHAP, hyperparameter optimization, automatic promotion, or final test metric.
 Synthetic demonstrations validate integration only and cannot establish
 generalization, calibration, robustness, or malware-detection capability.
+
+## Inference boundary
+
+Phase 03.05 references synthetic validation status in its active descriptor but
+does not rerun evaluation, permutation importance, threshold selection, or
+calibration per request. Global importance is not a local explanation. Phase
+03.04 selected no candidate; explicit local demo registration is separate from
+research selection and deployment promotion.
