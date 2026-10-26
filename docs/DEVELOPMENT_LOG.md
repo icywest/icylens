@@ -373,3 +373,19 @@ Final evidence: 621 tests passed (66 added), 93.15% branch coverage, Ruff
 lint/format PASS, strict mypy PASS over 93 source files, `pip check` PASS, and
 the unified Quality Gate PASS. One controlled live FIRST lookup validated the
 requested CVE and returned a score dated 2026-10-25 with current freshness.
+
+## Phase 04 / Checkpoint 04.05 — unified evidence correlation
+
+Added strict unified source and evidence contracts, a bounded correlation
+service, GET correlation, and POST declared-inventory assessment. The service
+calls NVD and EPSS once in parallel, reads KEV without refresh, reuses existing
+CVSS/CWE and CPE logic, isolates typed source failures, and preserves source
+timestamps and freshness. No combined score, ML dependency, persistence,
+malware conclusion, Git release operation, or 04.06 work was introduced.
+
+Final test and quality measurements are recorded in the checkpoint acceptance
+document and implementation handoff.
+
+Final evidence: 685 tests passed (64 added), 93.28% branch coverage, Ruff
+lint/format PASS, strict mypy PASS over 97 source files, `pip check` PASS, and
+the unified Quality Gate PASS.

@@ -491,3 +491,17 @@ the service enforces identity, normalizes provenance/freshness, and owns a
 bounded process-local TTL/LRU cache; the route exposes only a typed single-CVE
 GET. EPSS remains independent of NVD interpretation, KEV snapshots, CPE
 applicability, and ML inference. No correlation or combined scoring occurs.
+
+## Phase 04 Checkpoint 04.05 evidence correlation
+
+`VulnerabilityCorrelationService` composes the existing NVD normalization,
+CVSS/CWE interpretation, KEV snapshot store, EPSS cached lookup, and CPE
+assessment without duplicating provider HTTP. NVD and EPSS execute once in a
+two-branch fan-out; KEV remains a synchronous immutable-snapshot read. Typed
+recoverable provider failures remain inside their source branch. Unexpected
+failures and the correlation-wide deadline abort the request.
+
+The public response carries bounded NVD summary metadata rather than the full
+provider-derived document, existing interpretation contracts, optional CPE
+assessment, and a structured evidence ledger. No correlation dependency
+points toward ML, and request handling cannot refresh KEV.

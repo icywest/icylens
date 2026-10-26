@@ -339,3 +339,13 @@ their FIRST publication date; absence, freshness, and provenance are explicit.
 EPSS is neither CVSS severity nor proof of exploitation or compromise. See
 [`docs/FIRST_EPSS_INTEGRATION.md`](docs/FIRST_EPSS_INTEGRATION.md) and
 [`docs/EPSS_SCORE_SEMANTICS.md`](docs/EPSS_SCORE_SEMANTICS.md).
+
+## Unified vulnerability intelligence
+
+Phase 04.05 correlates NVD, CVSS/CWE interpretation, the active CISA KEV
+snapshot, and FIRST EPSS by exact CVE identity. The GET endpoint returns source
+evidence without asset assumptions; the POST assessment optionally evaluates
+the existing CPE tree against a bounded declared inventory. Source failures are
+isolated and no combined score or compromise conclusion is produced. See
+[`docs/UNIFIED_VULNERABILITY_INTELLIGENCE.md`](docs/UNIFIED_VULNERABILITY_INTELLIGENCE.md)
+and [`docs/EVIDENCE_CORRELATION_POLICY.md`](docs/EVIDENCE_CORRELATION_POLICY.md).

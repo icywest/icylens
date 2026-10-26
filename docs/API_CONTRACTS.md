@@ -384,6 +384,24 @@ EPSS probability, percentile rank, score date, retrieval time, API version,
 and optional model version remain separate. The current point API provides no
 verifiable model-version field, so it is null.
 
+## Unified vulnerability intelligence
+
+`GET /api/v1/intelligence/vulnerabilities/{cve_id}` returns a typed correlation
+without asset applicability. `POST .../{cve_id}/assessment` accepts the same
+strict `AssetInventory` used by the existing applicability endpoint and adds a
+typed applicability resolution. The POST raw body uses the existing configured
+byte limit and is never stored.
+
+Both endpoints return complete or partial results as HTTP 200. Source wrappers
+preserve distinct NVD, KEV and EPSS statuses, evidence, timestamps, freshness,
+safe error codes and limitations. If every source fails, the typed unavailable
+response uses 429/502/503/504 according to the recoverable failure classes.
+Malformed CVEs/inventories return 422, oversized inventory returns 413, and
+unexpected internal failures return sanitized 500 responses.
+
+The contract includes no global risk score. `applicability: null` means no
+inventory was supplied; it is not a not-applicable conclusion.
+
 ### Lifecycle and report invariants
 
 The operation is synchronous. HTTP 200 always carries `status: "completed"`
