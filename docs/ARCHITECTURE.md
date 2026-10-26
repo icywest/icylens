@@ -588,3 +588,28 @@ identity group rather than all pairs. The graph cannot fabricate nodes. Strict
 time edges point forward and equal-time ordering remains indeterminate. No
 dependency points to ATT&CK, ML, vulnerability intelligence, the filesystem,
 the network, a database, or the 05.03 rule registry.
+
+## Phase 05 Checkpoint 05.05 evidence-grounded ATT&CK mapping
+
+The mapping layer composes existing engines but does not let ATT&CK semantics
+flow backward into events, findings, or temporal relationships.
+
+```text
+EventBatch -> rule engine + temporal engine
+  -> evidence references -> immutable policy registry
+  -> sufficiency state -> in-memory ATT&CK 19.2 snapshot
+  -> bounded structured explanation
+```
+
+`schemas/attack_mapping.py` owns public contracts and limits;
+`behavior/attack_mapping_policies.py` the three declarative policies;
+`attack_mapping_registry.py` identity and catalog validation;
+`attack_mapping_evidence.py` canonical backend references;
+`services/attack_mapping.py` evaluation, output limits, timeout and admission;
+and `routes/behavior_attack.py` sanitized HTTP behavior. The application-owned
+capacity counter prevents more than four active workers and remains held across
+client cancellation until the underlying thread ends.
+
+The only catalog dependency is the already loaded immutable snapshot. There is
+no provider call, free-text technique matching, ML, vulnerability-intelligence
+dependency, persistence, or client-defined policy execution.

@@ -525,3 +525,29 @@ state, and hard-limit vocabulary and is read-only. Neither route accepts
 expressions, rules, files, storage targets, external endpoints, or continuous
 streams. Responses do not echo raw command lines, paths, host IDs, users,
 configuration values, or network endpoints.
+
+## Phase 05 evidence-grounded ATT&CK mapping API
+
+`GET /api/v1/behavior/attack/policies` returns the immutable iCYLENS mapping
+registry, catalog availability/version, evidence requirements, platforms,
+limitations, and retired-object policy. It accepts no write method.
+
+`POST /api/v1/behavior/attack/map` accepts a strict `EventBatch`, optional
+registered policy IDs, and an optional bounded correlation policy. It does not
+accept findings, graphs, rule definitions, ATT&CK IDs, URLs, scores, or code.
+The backend recomputes 05.03 findings and 05.04 relationships before evaluating
+the selected policies against the in-memory Enterprise ATT&CK 19.2 snapshot.
+
+HTTP 200 returns `AttackMappingAssessment` with catalog provenance, rule and
+temporal summaries, typed evaluations, evidence references, structured
+explanations, state counts, limitations, and false security-verdict flags.
+`candidate` is educational context, never confirmed execution. Current built-in
+policies require evidence absent from schema 1.0.0 and therefore do not create
+positive candidates.
+
+Malformed or duplicate selections return 422; bodies over 512 KiB return 413;
+capacity exhaustion returns 429; deadline, operation-timeout, or nested-engine
+budget exhaustion returns 503; and unexpected failures return sanitized 500.
+The response omits raw telemetry values and is capped at 512 KiB. No catalog
+network call, persistence, ML, vulnerability mapping, malware classification,
+attribution, or attack confirmation occurs.

@@ -1,5 +1,16 @@
 # iCYLENS
 
+## Phase 05 evidence-grounded ATT&CK mapping
+
+Checkpoint 05.05 adds conservative behavioral-to-ATT&CK policy assessment at
+`/api/v1/behavior/attack`. Findings and temporal evidence are recomputed by the
+backend and resolved only against the packaged Enterprise ATT&CK 19.2 catalog.
+Current built-in policies intentionally produce no positive candidates because
+the schema lacks independent interpreter, application-protocol, and scheduled-
+task execution evidence. See
+[`docs/ATTACK_BEHAVIORAL_MAPPING.md`](docs/ATTACK_BEHAVIORAL_MAPPING.md) and
+[`docs/ATTACK_MAPPING_EXPLAINABILITY.md`](docs/ATTACK_MAPPING_EXPLAINABILITY.md).
+
 ## Phase 05 temporal evidence correlation
 
 Checkpoint 05.04 adds bounded, deterministic event-time correlation at

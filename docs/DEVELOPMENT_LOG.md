@@ -450,3 +450,20 @@ the unified Quality Gate PASS.
 - Final quality gate: 844 tests passed, 94.21% branch coverage, Ruff lint and
   format PASS, mypy strict PASS over 121 source files, `pip check` PASS, and
   unified Quality Gate PASS.
+
+## 2026-10-26 — Phase 05 checkpoint 05.05
+
+- Audited `main` and `origin/main` at `4a37fc0`; all five 05.04 commits are
+  present, runtime metadata remains `0.4.1`, `v0.4.0` remains the newest tag,
+  and the pre-existing untracked `app/attack/__init__.py` was preserved.
+- Reviewed all twelve behavioral rules for ATT&CK evidence sufficiency. Added
+  three immutable policies whose missing semantic requirements remain explicit;
+  current built-ins intentionally create zero positive candidates.
+- Added backend recomputation of rule/temporal evidence, pinned 19.2 resolution,
+  structured explanations, retired/unavailable states, hard privacy/resource/
+  concurrency bounds, typed API routes, adversarial tests, and documentation.
+- No ML, vulnerability mapping, free-text matching, malware verdict, attack
+  confirmation, attribution, external lookup, persistence, or 05.06 work was
+  introduced. Final quality gate: 867 tests passed, 94.27% branch coverage,
+  Ruff lint/format PASS, strict mypy PASS over 127 source files, `pip check`
+  PASS, and unified Quality Gate PASS.
