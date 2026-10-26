@@ -1,5 +1,28 @@
 # iCYLENS Backend Architecture
 
+## Phase 04 Checkpoint 04.03 CISA KEV boundary
+
+The CISA KEV integration separates fixed-host HTTP transport, permissive-current
+provider schemas, strict catalog integrity validation, canonical records,
+immutable snapshots, indexed lookup, service, and API. One lifespan-owned client
+and store serve all requests. Refresh is optional at startup and never occurs on
+lookup. Candidate construction occurs off to the side and a single assignment
+promotes only a completely validated snapshot; failures retain the previous
+snapshot. NVD transport and CVSS/CWE/CPE domains remain independent.
+
+## Phase 04 Checkpoint 04.02 interpretation boundary
+
+`app/vulnerability` is a pure domain layer beneath HTTP services. CVSS and CWE
+interpreters consume canonical records; the CPE parser and applicability engine
+also consume a strict declared inventory. `VulnerabilityInterpretationService`
+coordinates them, while routes only fetch, validate bounded input, map provider
+errors, and serialize typed results. The NVD client remains the sole provider
+transport boundary and its 04.01.1 streaming/deadline lifecycle is unchanged.
+
+Dependency direction is NVD client → canonical record → interpretation domain →
+typed interpretation/assessment. No domain module imports FastAPI or calls an
+external service.
+
 ## Phase 04 Checkpoint 04.01 NVD boundary
 
 The vulnerability route calls a provider-independent service. The service accepts

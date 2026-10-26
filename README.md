@@ -2,12 +2,29 @@
 
 ## Phase 04 vulnerability intelligence
 
+Checkpoint 04.03 adds an independent, read-only CISA KEV snapshot integration.
+It securely refreshes the canonical catalog only through an internal optional
+startup policy, validates and indexes complete snapshots atomically, and exposes
+`GET /api/v1/intelligence/kev/status` plus
+`GET /api/v1/intelligence/kev/{cve_id}`. KEV presence is known-exploitation
+evidence, not proof of local impact or compromise. See
+[`docs/CISA_KEV_INTEGRATION.md`](docs/CISA_KEV_INTEGRATION.md) and
+[`docs/KEV_CATALOG_LIFECYCLE.md`](docs/KEV_CATALOG_LIFECYCLE.md).
+
 Checkpoint 04.01 adds a read-only typed integration with the official NVD CVE API
 2.0 at `GET /api/v1/vulnerabilities/CVE-2021-44228`. It validates identity,
 bounds HTTP work and response size, and returns canonical CVE, CVSS, CWE, CPE,
 reference, provenance, and limitation contracts. It does not scan assets, confirm
 exploitation, detect malware, or calculate risk. See
 [`docs/NVD_INTEGRATION.md`](docs/NVD_INTEGRATION.md) and
+[`docs/CVSS_CWE_CPE_INTERPRETATION.md`](docs/CVSS_CWE_CPE_INTERPRETATION.md).
+
+Checkpoint 04.02 adds conservative CVSS/CWE interpretation and CPE applicability
+assessment against a bounded declared inventory. It uses three-valued logic and
+never labels an asset confirmed vulnerable. Use
+`GET /api/v1/vulnerabilities/{cve_id}/interpretation` or POST a strict inventory
+to `/api/v1/vulnerabilities/{cve_id}/applicability`. See
+[`docs/CPE_APPLICABILITY_ENGINE.md`](docs/CPE_APPLICABILITY_ENGINE.md) and
 [`docs/VULNERABILITY_DATA_CONTRACTS.md`](docs/VULNERABILITY_DATA_CONTRACTS.md).
 
 iCYLENS is an experimental cybersecurity analysis platform. Phase 02 now

@@ -1,5 +1,25 @@
 # iCYLENS Development Log
 
+## Phase 04 / Checkpoint 04.03: CISA KEV Integration
+
+Added a canonical-only, bounded streaming CISA KEV client; current provider and
+canonical contracts; duplicate/count/date validation; immutable atomic snapshots;
+freshness-aware indexed lookup; optional nonfatal startup refresh; and read-only
+status/lookup endpoints. Offline adversarial tests cover transport, integrity,
+lifecycle, and conservative semantics. A single live canonical fetch validated
+catalog `2026.10.23` with 1,756 records. No EPSS or unified risk correlation was
+introduced.
+
+## Phase 04 / Checkpoint 04.02: CVSS, CWE, and CPE Interpretation
+
+Added lossless CVSS interpretation and deterministic display selection, CWE
+special-value classification, a strict declared-inventory contract, structured
+CPE 2.3 safe-subset parsing, bounded numeric/SemVer comparison, and a recursive
+three-valued applicability engine with evidence traces. Added interpretation and
+applicability endpoints with raw-body limits while preserving the base CVE GET
+and the hardened NVD client. No scanning, exploitation, persistence, risk score,
+KEV, EPSS, or ATT&CK inference was introduced.
+
 ## Phase 04 / Checkpoint 04.01.1: NVD HTTP Resource Safety Hardening
 
 Corrected the independent-review finding that `AsyncClient.get()` buffered and

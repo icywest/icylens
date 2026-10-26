@@ -1,5 +1,38 @@
 # iCYLENS API Contracts — Baseline 0.1.0
 
+## Phase 04.03 CISA KEV intelligence
+
+`GET /api/v1/intelligence/kev/status` always returns public snapshot metadata:
+`fresh`, `stale`, `unavailable`, or `never_loaded`, plus optional version,
+release/retrieval timestamps, freshness age, and count. It exposes no paths,
+secrets, endpoint configuration, stack traces, or refresh control.
+
+`GET /api/v1/intelligence/kev/{cve_id}` returns `KEVLookupResult` 1.0.0. Presence
+is `listed`, `not_listed`, or `not_established`; the last is used for a stale
+negative. No validated snapshot yields 503, an invalid CVE yields 422, and
+unexpected failures yield sanitized 500. A valid fresh negative returns 200
+`not_listed` to distinguish a successful catalog query from provider failure.
+
+Both routes are read-only and perform no fetch. `KEVRecord` preserves CISA text,
+dates, ransomware status, optional forensic-triage/CWE values, and provenance.
+
+## Phase 04.02 interpretation and applicability
+
+`GET /api/v1/vulnerabilities/{cve_id}/interpretation` returns
+`VulnerabilityInterpretation` 1.0.0 with every CVSS metric, display-selection
+status/reason, CWE classifications, no applicability result, and explicit
+limitations. It uses the same NVD error taxonomy as the base GET.
+
+`POST /api/v1/vulnerabilities/{cve_id}/applicability` accepts an inline-documented
+`AssetInventory` 1.0.0 and returns `ApplicabilityAssessment` 1.0.0. The body is
+read as a bounded stream before JSON decoding. Invalid inventory is 422 and a
+body over `ICYLENS_VULNERABILITY_MAX_INVENTORY_BODY_BYTES` is 413. Provider
+404/429/502/503/504 semantics remain intact. Inventories are not persisted.
+
+The original `GET /api/v1/vulnerabilities/{cve_id}` response remains the
+canonical source record; its only additive field is optional source weakness
+`weakness_type`, and `base_score` can represent source absence as null.
+
 ## Phase 04.01 vulnerability lookup
 
 `GET /api/v1/vulnerabilities/{cve_id}` accepts only uppercase IDs matching the

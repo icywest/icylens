@@ -801,6 +801,7 @@ def test_rich_fixture_normalizes_without_losing_cvss_cwe_or_cpe_logic() -> None:
     assert [metric.version.value for metric in record.cvss_metrics] == ["3.1", "2.0"]
     assert record.cvss_metrics[1].base_severity == "HIGH"
     assert record.weaknesses[0].identifier == "CWE-502"
+    assert record.weaknesses[0].weakness_type == "Primary"
     configuration = record.affected_product_criteria[0]
     assert configuration.operator == "AND"
     assert [node.operator for node in configuration.nodes] == ["OR", "OR"]
@@ -1202,3 +1203,90 @@ def test_optional_provider_fields_are_not_fabricated() -> None:
     assert record.cvss_metrics == ()
     assert record.references == ()
     assert record.provenance.data_completeness.value == "minimal"
+
+
+@pytest.mark.integration
+def test_interpretation_endpoint_returns_typed_non_operational_result() -> None:
+    with client_for(StubNVDClient()) as client:
+        response = client.get("/api/v1/vulnerabilities/CVE-2021-44228/interpretation")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cvss"]["selection_status"] == "selected"
+    assert body["cvss"]["risk_score"] is None
+    assert body["weaknesses"][0]["classification_status"] == "classified"
+    assert body["weaknesses"][0]["weakness_type"] == "Primary"
+    assert body["applicability"] is None
+
+
+def declared_inventory() -> dict[str, object]:
+    return {
+        "schema_version": "1.0.0",
+        "inventory_id": "api-test",
+        "products": [
+            {
+                "product_id": "application",
+                "cpe23_name": ("cpe:2.3:a:example:synthetic_product:1.5:*:*:*:*:*:*:*"),
+                "version": "1.5",
+                "version_scheme": "numeric",
+                "evidence_type": "declared",
+            }
+        ],
+        "provenance": {"source": "integration-test", "collected_at": None},
+        "completeness": "complete",
+    }
+
+
+@pytest.mark.integration
+def test_applicability_endpoint_evaluates_intact_tree_and_does_not_persist() -> None:
+    stub = StubNVDClient()
+    with client_for(stub) as client:
+        response = client.post(
+            "/api/v1/vulnerabilities/CVE-2021-44228/applicability",
+            json=declared_inventory(),
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "potentially_applicable"
+    assert body["truth"] == "true"
+    assert body["evaluation_tree"]["children"][0]["children"][1]["negated"] is True
+    assert "confirmed_vulnerable" not in response.text
+
+
+@pytest.mark.integration
+def test_applicability_endpoint_rejects_invalid_and_oversized_inventory() -> None:
+    invalid = declared_inventory()
+    invalid["confirmed_vulnerable"] = True
+    with client_for(StubNVDClient()) as client:
+        response = client.post(
+            "/api/v1/vulnerabilities/CVE-2021-44228/applicability", json=invalid
+        )
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Invalid asset inventory."}
+
+    application = create_app(
+        nvd_settings(VULNERABILITY_MAX_INVENTORY_BODY_BYTES=1024),
+        nvd_client_factory=lambda _: StubNVDClient(),  # type: ignore[arg-type,return-value]
+    )
+    with TestClient(application) as client:
+        response = client.post(
+            "/api/v1/vulnerabilities/CVE-2021-44228/applicability",
+            content=b"{" + b" " * 1024 + b"}",
+            headers={"content-type": "application/json"},
+        )
+    assert response.status_code == 413
+
+
+@pytest.mark.contract
+def test_openapi_documents_interpretation_and_bounded_inventory_body() -> None:
+    with client_for(StubNVDClient()) as client:
+        schema = client.get("/openapi.json").json()
+    interpretation = schema["paths"]["/api/v1/vulnerabilities/{cve_id}/interpretation"][
+        "get"
+    ]
+    applicability = schema["paths"]["/api/v1/vulnerabilities/{cve_id}/applicability"][
+        "post"
+    ]
+    assert interpretation["responses"]["200"]["content"]["application/json"]
+    assert applicability["requestBody"]["required"] is True
+    assert "AssetInventory" in json.dumps(applicability["requestBody"])
+    assert "413" in applicability["responses"]
