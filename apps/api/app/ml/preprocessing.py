@@ -13,7 +13,7 @@ from sklearn.preprocessing import (  # type: ignore[import-untyped]
 
 from app.schemas.ml_dataset import MLDatasetRecord
 from app.schemas.ml_experiment import PreprocessingConfiguration
-from app.schemas.ml_features import PREDICTIVE_FEATURE_ORDER
+from app.schemas.ml_features import PREDICTIVE_FEATURE_ORDER, MLFeatureVector
 
 NUMERIC_FEATURES = PREDICTIVE_FEATURE_ORDER[:5]
 CATEGORICAL_FEATURES = PREDICTIVE_FEATURE_ORDER[5:7]
@@ -37,23 +37,34 @@ TRANSFORMED_FEATURE_COUNT = 23
 NumericScaling = Literal["standard_scaler", "passthrough"]
 
 
+def expected_transformed_feature_names() -> tuple[str, ...]:
+    """Return the versioned 23-column output contract without fitting data."""
+    return (
+        *(f"numeric__x{index}" for index in NUMERIC_COLUMNS),
+        *(f"categorical__x5_{category}" for category in DETECTED_FORMAT_CATEGORIES),
+        *(f"categorical__x6_{category}" for category in FORMAT_CONSISTENCY_CATEGORIES),
+        *(f"boolean__x{index}" for index in BOOLEAN_COLUMNS),
+    )
+
+
 def _as_float(values: NDArray[np.object_]) -> NDArray[np.float64]:
     return values.astype(np.float64)
 
 
 def build_feature_matrix(records: Sequence[MLDatasetRecord]) -> NDArray[np.object_]:
-    rows: list[list[int | float | str]] = []
-    for record in records:
-        values = record.features.ordered_predictive_values()
-        rows.append(
-            [
-                *[float(value) for value in values[:5]],
-                str(values[5]),
-                str(values[6]),
-                *[int(bool(value)) for value in values[7:]],
-            ]
-        )
+    rows = [build_feature_row(record.features) for record in records]
     return np.asarray(rows, dtype=object)
+
+
+def build_feature_row(features: MLFeatureVector) -> list[int | float | str]:
+    """Build the canonical model row shared by training and inference."""
+    values = features.ordered_predictive_values()
+    return [
+        *[float(value) for value in values[:5]],
+        str(values[5]),
+        str(values[6]),
+        *[int(bool(value)) for value in values[7:]],
+    ]
 
 
 def build_labels(records: Sequence[MLDatasetRecord]) -> NDArray[np.str_]:
