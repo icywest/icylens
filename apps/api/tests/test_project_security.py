@@ -72,6 +72,9 @@ def test_env_example_contains_only_documented_non_secret_settings() -> None:
         "ICYLENS_EPSS_CACHE_MAX_ENTRIES",
         "ICYLENS_EPSS_CURRENT_MAX_AGE_DAYS",
         "ICYLENS_EPSS_STALE_MAX_AGE_DAYS",
+        "ICYLENS_CORRELATION_TOTAL_DEADLINE_SECONDS",
+        "ICYLENS_CORRELATION_MAX_CONCURRENCY",
+        "ICYLENS_CORRELATION_MAX_RESPONSE_BYTES",
     }
 
 

@@ -304,6 +304,8 @@ def test_openapi_contains_checkpoint_contracts_once(client: TestClient) -> None:
         "/api/v1/intelligence/kev/status",
         "/api/v1/intelligence/kev/{cve_id}",
         "/api/v1/intelligence/epss/{cve_id}",
+        "/api/v1/intelligence/vulnerabilities/{cve_id}",
+        "/api/v1/intelligence/vulnerabilities/{cve_id}/assessment",
     }
     assert "AnalysisRequest" in schema["components"]["schemas"]
     assert "HealthResponse" in schema["components"]["schemas"]
