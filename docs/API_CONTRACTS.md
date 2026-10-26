@@ -551,3 +551,31 @@ budget exhaustion returns 503; and unexpected failures return sanitized 500.
 The response omits raw telemetry values and is capped at 512 KiB. No catalog
 network call, persistence, ML, vulnerability mapping, malware classification,
 attribution, or attack confirmation occurs.
+
+## Phase 05 unified behavioral analysis API
+
+`POST /api/v1/behavior/analyze` accepts a strict `BehavioralAnalysisRequest`
+with a canonical batch and bounded registered selections. The service always
+revalidates declared events. A blocking semantic inconsistency returns a typed
+HTTP 200 `partial` result with downstream stages `skipped`; structural failures
+remain 422.
+
+`POST /api/v1/behavior/scenarios/analyze` accepts one strict seeded 05.02
+scenario specification and the same analysis options. It uses only the existing
+generator and returns the same `BehavioralAnalysisResult` contract. `GET
+/api/v1/behavior/analysis/schema` publishes sources, global/stage states, and
+hard limits.
+
+The result includes deterministic analysis identity and generation time,
+provenance and event counts, validation, minimized rule findings, temporal
+relationships/sequences, mapping evaluations and catalog version, five stage
+records, issues, summaries, controlled explanation, limitations, and false
+verdict flags. Events and raw evidence values are not echoed.
+
+Requests are limited before buffering to 512 KiB for declared batches and 64
+KiB for scenario specifications. The service allows 256 declared or 100
+synthetic events, one scenario per call, a 3-second pipeline deadline, 4-second
+operation timeout, 1 MiB encoded response, and four active workers. HTTP 413,
+422, 429, 503, and sanitized 500 retain distinct meanings. It accepts no code,
+URLs, dynamic rules/policies, trusted client findings/graphs, free-form ATT&CK
+IDs, export paths, persistence targets, or executable content.

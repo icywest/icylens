@@ -613,3 +613,36 @@ client cancellation until the underlying thread ends.
 The only catalog dependency is the already loaded immutable snapshot. There is
 no provider call, free-text technique matching, ML, vulnerability-intelligence
 dependency, persistence, or client-defined policy execution.
+
+## Phase 05 Checkpoint 05.06 unified behavioral orchestration
+
+The unified service is a thin composition boundary over the five existing
+Phase 05 components:
+
+```text
+declared EventBatch -> canonical validator ----------------------+
+synthetic request -> existing generator + its validation --------+
+                                                                v
+  one validation -> one rule evaluation -> one temporal correlation
+       -> typed trusted mapping evaluation -> controlled explanation
+       -> bounded, privacy-minimized BehavioralAnalysisResult
+```
+
+`schemas/behavior_analysis.py` owns strict contracts and global limits;
+`services/behavior_analysis.py` owns ordering, status aggregation,
+deterministic UUIDv5 identity, privacy minimization, output bounding, admission,
+timeout, and cancellation cleanup; and `routes/behavior_analysis.py` owns the
+two POST modes, read-only schema route, and sanitized HTTP translation.
+
+The rule and temporal engines accept an optional trusted validation result.
+The mapping service exposes a typed internal `evaluate_trusted` method for
+backend-generated rule and temporal results. These are Python-only composition
+interfaces: HTTP consumers cannot inject a trusted result. The standalone
+05.05 mapping endpoint continues to recompute its own evidence.
+
+Blocking semantic validation yields a partial assessment and explicit skipped
+stages. Catalog absence yields a partial assessment and unavailable mapping
+stage. A loaded catalog with no candidates is complete. The orchestration adds
+no reverse dependency into earlier engines, no open-ended explanation engine,
+and no persistence, filesystem/network side effect, ML, or vulnerability
+intelligence dependency.

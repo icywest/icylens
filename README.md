@@ -1,5 +1,16 @@
 # iCYLENS
 
+## Phase 05 unified behavioral analysis
+
+Checkpoint 05.06 composes validation, deterministic rules, temporal evidence,
+and conservative ATT&CK mapping into one privacy-minimized assessment. It
+accepts either a canonical event batch or one existing seeded synthetic
+scenario, executes each engine once, and reports explicit stage state and
+controlled explanations. Zero ATT&CK candidates is a valid result; no response
+is a malware, attack, causal, or SOC verdict. See
+[`docs/UNIFIED_BEHAVIORAL_ANALYSIS.md`](docs/UNIFIED_BEHAVIORAL_ANALYSIS.md) and
+[`docs/BEHAVIORAL_SYNTHETIC_DEMO.md`](docs/BEHAVIORAL_SYNTHETIC_DEMO.md).
+
 ## Phase 05 evidence-grounded ATT&CK mapping
 
 Checkpoint 05.05 adds conservative behavioral-to-ATT&CK policy assessment at

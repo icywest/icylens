@@ -467,3 +467,24 @@ the unified Quality Gate PASS.
   introduced. Final quality gate: 867 tests passed, 94.27% branch coverage,
   Ruff lint/format PASS, strict mypy PASS over 127 source files, `pip check`
   PASS, and unified Quality Gate PASS.
+
+## 2026-10-26 — Phase 05 checkpoint 05.06
+
+- Audited `main` and `origin/main` at `0efb66a`; all six 05.05 commits are
+  present, runtime metadata remains `0.4.1`, `v0.4.0` remains the newest tag,
+  and the pre-existing untracked `app/attack/__init__.py` was preserved.
+- Added one deterministic unified assessment contract over declared batches or
+  existing seeded scenarios, with explicit stage/global states, controlled
+  explanation, minimized evidence, provenance, and hard false verdict flags.
+- Reused validation, rules, correlation, and mapping results once per request
+  through trusted internal interfaces without weakening the standalone 05.05
+  HTTP trust boundary.
+- Added body/output/deadline/admission limits, safe cancellation accounting,
+  two POST endpoints, a schema endpoint, offline adversarial tests, demo guide,
+  architecture/contracts documentation, and acceptance evidence.
+- No new rules, mapping policies, ATT&CK candidates, LLM, ML, vulnerability
+  mapping, host collection, SIEM ingestion, command execution, persistence,
+  causal inference, malware verdict, or attack confirmation was introduced.
+  Final quality gate: 892 tests passed (25 added), 94.43% branch coverage,
+  Ruff lint/format PASS, strict mypy PASS over 130 source files, `pip check`
+  PASS, `git diff --check` PASS, and unified Quality Gate PASS.
