@@ -1,5 +1,15 @@
 # iCYLENS
 
+## Phase 05 temporal evidence correlation
+
+Checkpoint 05.04 adds bounded, deterministic event-time correlation at
+`/api/v1/behavior/sequences`. It returns explainable event-only graphs and
+identity sequences with explicit confidence, ambiguity, conflicts, and hard
+resource limits. Temporal precedence and proximity never imply causality,
+maliciousness, persistence, or ATT&CK execution. See
+[`docs/BEHAVIORAL_TEMPORAL_CORRELATION.md`](docs/BEHAVIORAL_TEMPORAL_CORRELATION.md)
+and [`docs/BEHAVIORAL_EVIDENCE_GRAPH.md`](docs/BEHAVIORAL_EVIDENCE_GRAPH.md).
+
 ## Phase 05 deterministic behavioral rules
 
 Checkpoint 05.03 adds a fixed, read-only registry of twelve educational rules

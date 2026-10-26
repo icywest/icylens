@@ -503,3 +503,25 @@ Malformed, duplicate, or unknown rule IDs return 422. Oversized request bodies
 return 413 before JSON buffering. Evaluation-budget exhaustion returns sanitized
 503 and unexpected failures return sanitized 500. The API accepts no rule
 definitions, expressions, plugins, scripts, severities, or remote endpoints.
+
+## Phase 05 temporal correlation API
+
+`POST /api/v1/behavior/sequences/correlate` accepts a strict `EventBatch` and
+an optional bounded `CorrelationPolicy`. It reuses 05.02 validation and returns
+`TemporalCorrelationResult`: deterministic processing metadata, canonical
+event nodes, typed relationships, bounded sequences, explicit issues, summary,
+limitations, and false flags for causality, ATT&CK mapping, malware
+classification, and persistence.
+
+The policy accepts a 1–86,400 second relationship window, bounded skew/future
+tolerances, and an optional aware processing time. Without one, processing and
+generation time deterministically use the latest declared `received_at`.
+Request bodies are limited to 512 KiB before JSON buffering. Invalid contracts
+return 422, oversized bodies 413, exhausted correlation budgets 503, and
+unexpected errors a sanitized 500.
+
+`GET /api/v1/behavior/sequences/schema` exposes the relationship, confidence,
+state, and hard-limit vocabulary and is read-only. Neither route accepts
+expressions, rules, files, storage targets, external endpoints, or continuous
+streams. Responses do not echo raw command lines, paths, host IDs, users,
+configuration values, or network endpoints.

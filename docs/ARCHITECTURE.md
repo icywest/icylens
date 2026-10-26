@@ -561,3 +561,30 @@ EventBatch -> 05.02 validation -> immutable registry
 The engine does not depend on the ATT&CK catalog, ML, vulnerability sources,
 filesystem, network, or persistence. Temporal reasoning is limited to order in
 one batch; advanced event-sequence correlation remains 05.04 scope.
+
+## Phase 05 Checkpoint 05.04 event sequence and temporal evidence correlation
+
+The sequence route composes existing event validation with isolated policy,
+identity, fixed-rule, evidence-ID, schema, orchestration, and HTTP modules.
+
+```text
+bounded EventBatch -> existing validator -> UTC canonicalization
+  -> correlation_policy + correlation_identity + correlation_rules
+  -> correlation_evidence -> event-only graph + sequences + issues
+  -> strict TemporalCorrelationResult
+```
+
+`schemas/behavior_correlation.py` owns public contracts and hard limits.
+`behavior/correlation_policy.py` owns deterministic processing time and window
+semantics; `correlation_identity.py` owns host-scoped declared keys;
+`correlation_rules.py` owns bounded adjacency/window primitives;
+`correlation_evidence.py` owns deterministic UUIDv5 identities and evidence
+construction; `correlation.py` orchestrates without persistence or I/O; and
+`api/v1/routes/behavior_sequences.py` maps typed resource failures to sanitized
+HTTP responses. The existing pre-buffer middleware applies the 512 KiB limit.
+
+Sorting and hash grouping are O(n log n); rules link adjacent members of each
+identity group rather than all pairs. The graph cannot fabricate nodes. Strict
+time edges point forward and equal-time ordering remains indeterminate. No
+dependency points to ATT&CK, ML, vulnerability intelligence, the filesystem,
+the network, a database, or the 05.03 rule registry.
