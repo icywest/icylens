@@ -17,6 +17,8 @@ from app.ml.model_runtime import TrustedModelRuntime
 from app.schemas.ml_inference import ActiveModelDescriptor
 from app.services.epss_intelligence import EPSSIntelligenceService
 from app.services.ml_inference import InferenceCapacity
+from app.services.vulnerability_correlation import VulnerabilityCorrelationService
+from app.services.vulnerability_intelligence import VulnerabilityIntelligenceService
 
 logger = logging.getLogger("icylens.ml_lifecycle")
 kev_logger = logging.getLogger("icylens.kev_lifecycle")
@@ -55,8 +57,13 @@ def create_app(
         application.state.nvd_client = nvd_client
         application.state.kev_client = kev_client
         application.state.kev_store = kev_store
-        application.state.epss_service = EPSSIntelligenceService(
-            resolved_settings, epss_client
+        epss_service = EPSSIntelligenceService(resolved_settings, epss_client)
+        application.state.epss_service = epss_service
+        application.state.correlation_service = VulnerabilityCorrelationService(
+            resolved_settings,
+            VulnerabilityIntelligenceService(nvd_client),
+            kev_store,
+            epss_service,
         )
         if resolved_settings.KEV_REFRESH_ON_STARTUP:
             try:

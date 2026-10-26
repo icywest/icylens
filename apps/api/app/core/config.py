@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     EPSS_CACHE_MAX_ENTRIES: int = Field(default=1024, ge=1, le=10_000)
     EPSS_CURRENT_MAX_AGE_DAYS: int = Field(default=1, ge=0, le=7)
     EPSS_STALE_MAX_AGE_DAYS: int = Field(default=7, ge=1, le=30)
+    CORRELATION_TOTAL_DEADLINE_SECONDS: float = Field(default=60.0, gt=0, le=300)
+    CORRELATION_MAX_CONCURRENCY: int = Field(default=8, ge=1, le=64)
+    CORRELATION_MAX_RESPONSE_BYTES: int = Field(
+        default=2 * 1024 * 1024, ge=64 * 1024, le=8 * 1024 * 1024
+    )
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod

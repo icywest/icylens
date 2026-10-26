@@ -9,6 +9,7 @@ from app.api.v1.routes import (
     kev_intelligence,
     ml_inferences,
     static_analyses,
+    unified_vulnerabilities,
     uploads,
     vulnerabilities,
 )
@@ -18,6 +19,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(kev_intelligence.router)
 api_router.include_router(epss_intelligence.router)
+api_router.include_router(unified_vulnerabilities.router)
 api_router.include_router(analyses.router)
 api_router.include_router(uploads.router)
 api_router.include_router(fingerprints.router)
