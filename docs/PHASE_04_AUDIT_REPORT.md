@@ -10,6 +10,7 @@ Reauditoría final 2026-10-26: **BLOCKED — P04-SEC-006 abierto**
 Resultado de remediación 04.06.2: **PASS — apto para reauditoría independiente**
 Reauditoría final independiente 2026-10-26: **BLOCKED — P04-SEC-007 abierto**
 Resultado de remediación 04.06.3: **PASS — apto para reauditoría independiente**
+Aceptación final de release 2026-10-26: **PASS — alcance educativo local**
 
 ## A. Resumen ejecutivo
 
@@ -921,3 +922,59 @@ shutdown aunque ya no conserve autorización para publicar.
 Checkpoint 04.06.3 obtiene **PASS** y queda apto para reauditoría final
 independiente. No se crea `PHASE_04_ACCEPTANCE.md`, no se recomienda aún
 `v0.4.0`, y Phase 05 no fue iniciada.
+
+## V. Aceptación final independiente de Phase 04
+
+Fecha: 2026-10-26 (America/Managua)
+HEAD auditado: `d6bf8bc79a367d14001278b8eb3afb4a380e8316`
+Decisión: **PASS para el alcance educativo local**
+
+La revisión comenzó con working tree limpio. `main`, `HEAD` y `origin/main`
+coincidían; los correctivos 04.06.1, 04.06.2 y 04.06.3 estaban publicados. Los
+tags seguían siendo `v0.1.0`, `v0.2.0` y `v0.3.0`.
+
+Las reproducciones independientes confirmaron:
+
+- P04-SEC-001 **FIXED**: cancelación individual segura, cancelación/recolección
+  del último waiter, capacidad liberada, shutdown drenado y cero tasks huérfanos;
+- P04-SEC-006 **FIXED**: la operación antigua `0.000010000` no reemplaza el
+  resultado vigente `0.999990000`, tampoco cuando falla el sucesor;
+- P04-SEC-007 **FIXED**: el lock KEV permanece libre durante provider I/O, dos
+  consumidores comparten una llamada, lookup conserva acceso al snapshot activo
+  y el refresh termina sin registro ni tasks pendientes.
+
+```text
+EPSS cache before old completion=0.999990000
+EPSS cache after old completion=0.999990000
+EPSS inflight=0, pending_tasks=0
+KEV lock_held_during_provider_wait=False
+KEV provider_calls_total=1, same_snapshot=True
+KEV refresh_task=None, pending_tasks=0
+```
+
+Veinticinco pruebas focalizadas pasaron con asyncio debug y warnings como
+errores. El Quality Gate completo pasó con 706/706 pruebas, 93.37% de cobertura
+statement/branch, Ruff lint/format PASS sobre 116 archivos, mypy strict PASS
+sobre 97 archivos, `pip check` PASS y Quality Gate PASS.
+
+No se confirmó corrupción de cache/snapshot, tarea huérfana, excepción no
+recolectada, lock de coordinación durante I/O prolongado, evidencia inventada ni
+regresión semántica. NVD, CVSS/CWE/CPE, KEV, EPSS, correlación, Static Analysis,
+ML demo, API y OpenAPI conservaron sus contratos.
+
+Educational Local Release: **READY WITH CONDITIONS**. Las condiciones son
+operativas y de empaquetado, no defectos abiertos de Phase 04: estado y límites
+por proceso, carga KEV explícita, proveedores externos, ausencia de lockfile y
+metadata de aplicación aún en `0.1.0`.
+
+Public Production: **NOT READY** por ausencia de autenticación/autorización,
+rate limiting distribuido, estado compartido/persistente y operación de refresh
+distribuida, además de las condiciones de supply chain y despliegue documentadas.
+
+Se recomienda `v0.4.0` solo después de actualizar de forma controlada
+`apps/api/pyproject.toml:7`, `apps/api/app/core/config.py:27` y sus expectativas de
+test/documentación a `0.4.0`, commitear la aceptación y repetir el Quality Gate
+en limpio. Esta auditoría no modifica metadata ni crea el tag.
+
+Phase 04 queda aceptada para su alcance educativo local. Phase 05 no fue
+iniciada.
