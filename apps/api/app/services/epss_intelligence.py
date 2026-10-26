@@ -33,6 +33,13 @@ class _CacheEntry:
     expires_at: float
 
 
+@dataclass
+class _InFlightOperation:
+    task: asyncio.Task[EPSSLookupResult]
+    active_waiters: int
+    cancellation_requested: bool = False
+
+
 class EPSSProviderClient(Protocol):
     async def fetch_cve(self, cve_id: str) -> FIRSTEPSSResponse: ...
 
@@ -56,23 +63,61 @@ class EPSSIntelligenceService:
         self._current_days = settings.EPSS_CURRENT_MAX_AGE_DAYS
         self._stale_days = settings.EPSS_STALE_MAX_AGE_DAYS
         self._cache: OrderedDict[str, _CacheEntry] = OrderedDict()
-        self._inflight: dict[str, asyncio.Task[EPSSLookupResult]] = {}
+        self._inflight: dict[str, _InFlightOperation] = {}
         self._lock = asyncio.Lock()
+        self._closed = False
 
     async def lookup(self, cve_id: str) -> EPSSLookupResult:
         normalized = normalize_cve_id(cve_id)
         async with self._lock:
+            if self._closed:
+                raise RuntimeError("EPSS intelligence service is closed")
             cached = self._cache.get(normalized)
             if cached is not None and cached.expires_at > self._clock():
                 self._cache.move_to_end(normalized)
                 return self._with_current_freshness(cached.result)
             if cached is not None:
                 del self._cache[normalized]
-            task = self._inflight.get(normalized)
-            if task is None:
+            operation = self._inflight.get(normalized)
+            if operation is None:
                 task = asyncio.create_task(self._fetch_and_cache(normalized))
-                self._inflight[normalized] = task
-        return await asyncio.shield(task)
+                operation = _InFlightOperation(task=task, active_waiters=0)
+                self._inflight[normalized] = operation
+            operation.active_waiters += 1
+        try:
+            return await asyncio.shield(operation.task)
+        finally:
+            await self._release_waiter(normalized, operation)
+
+    async def aclose(self) -> None:
+        async with self._lock:
+            self._closed = True
+            operations = tuple(self._inflight.values())
+            self._inflight.clear()
+            for operation in operations:
+                operation.cancellation_requested = True
+                operation.task.cancel()
+        if operations:
+            await asyncio.gather(
+                *(operation.task for operation in operations),
+                return_exceptions=True,
+            )
+
+    async def _release_waiter(self, cve_id: str, operation: _InFlightOperation) -> None:
+        task_to_collect: asyncio.Task[EPSSLookupResult] | None = None
+        async with self._lock:
+            if operation.active_waiters <= 0:
+                raise RuntimeError("EPSS waiter release is unbalanced")
+            operation.active_waiters -= 1
+            if operation.active_waiters == 0:
+                if not operation.task.done():
+                    operation.cancellation_requested = True
+                    operation.task.cancel()
+                if self._inflight.get(cve_id) is operation:
+                    del self._inflight[cve_id]
+                task_to_collect = operation.task
+        if task_to_collect is not None:
+            await asyncio.gather(task_to_collect, return_exceptions=True)
 
     async def _fetch_and_cache(self, cve_id: str) -> EPSSLookupResult:
         try:
@@ -89,7 +134,8 @@ class EPSSIntelligenceService:
             return result
         finally:
             async with self._lock:
-                if self._inflight.get(cve_id) is asyncio.current_task():
+                operation = self._inflight.get(cve_id)
+                if operation is not None and operation.task is asyncio.current_task():
                     del self._inflight[cve_id]
 
     def _normalize(self, cve_id: str, response: FIRSTEPSSResponse) -> EPSSLookupResult:

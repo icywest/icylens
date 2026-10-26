@@ -93,6 +93,7 @@ def create_app(
         try:
             yield
         finally:
+            await epss_service.aclose()
             await epss_client.aclose()
             await kev_client.aclose()
             await nvd_client.aclose()
