@@ -1,10 +1,9 @@
-import json
 import logging
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, HTTPException, Path, Request, status
-from pydantic import ValidationError
 
+from app.api.v1.inventory import read_asset_inventory
 from app.integrations.nvd.client import (
     NVDClient,
     NVDInvalidResponseError,
@@ -83,32 +82,6 @@ async def _get_record(request: Request, cve_id: str) -> VulnerabilityRecord:
         ) from None
 
 
-async def _read_inventory(request: Request) -> AssetInventory:
-    maximum = request.app.state.settings.VULNERABILITY_MAX_INVENTORY_BODY_BYTES
-    declared = request.headers.get("content-length")
-    if declared is not None:
-        try:
-            if int(declared) > maximum:
-                raise HTTPException(413, "Asset inventory body is too large.")
-        except ValueError as error:
-            raise HTTPException(400, "Invalid Content-Length header.") from error
-    body = bytearray()
-    async for chunk in request.stream():
-        body.extend(chunk)
-        if len(body) > maximum:
-            raise HTTPException(413, "Asset inventory body is too large.")
-    try:
-        payload = json.loads(bytes(body))
-        return AssetInventory.model_validate(payload)
-    except (
-        json.JSONDecodeError,
-        UnicodeDecodeError,
-        ValidationError,
-        TypeError,
-    ) as error:
-        raise HTTPException(422, "Invalid asset inventory.") from error
-
-
 @router.get(
     "/{cve_id}",
     response_model=VulnerabilityRecord,
@@ -164,6 +137,6 @@ async def get_vulnerability_interpretation(
 async def assess_vulnerability_applicability(
     request: Request, cve_id: Annotated[str, _CVE_PATH]
 ) -> ApplicabilityAssessment:
-    inventory = await _read_inventory(request)
+    inventory = await read_asset_inventory(request)
     record = await _get_record(request, cve_id)
     return VulnerabilityInterpretationService().assess(record, inventory)
