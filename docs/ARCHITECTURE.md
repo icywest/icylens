@@ -42,12 +42,12 @@ the validated boundary rather than inferred provenance.
 
 ## System overview
 
-iCYLENS `0.1.0` currently provides a Python 3.12/3.13 backend foundation and a
-bounded static-analysis pipeline. FastAPI exposes versioned HTTP routes,
-Pydantic defines request and response contracts, and `pydantic-settings`
-supplies typed configuration. Static engines operate incrementally; there are
-no databases, durable file stores, dynamic analyzers, or external service
-clients.
+iCYLENS `0.4.1` provides a Python 3.12/3.13 backend foundation, a bounded
+static-analysis pipeline, educational ML demo inference, and read-only
+vulnerability intelligence backed by NVD, CISA KEV, and FIRST EPSS. FastAPI
+exposes versioned HTTP routes, Pydantic defines request and response contracts,
+and `pydantic-settings` supplies typed configuration. There are no databases,
+durable file stores, dynamic analyzers, or distributed provider caches.
 
 The backend lives in `apps/api`:
 

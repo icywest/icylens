@@ -11,6 +11,8 @@ Resultado de remediación 04.06.2: **PASS — apto para reauditoría independien
 Reauditoría final independiente 2026-10-26: **BLOCKED — P04-SEC-007 abierto**
 Resultado de remediación 04.06.3: **PASS — apto para reauditoría independiente**
 Aceptación final de release 2026-10-26: **PASS — alcance educativo local**
+Finalización de metadata `v0.4.0`: **BLOCKED — tag publicado antes del alignment**
+Release Recovery 04.01 / `v0.4.1`: **PASS — preparado, tag no creado**
 
 ## A. Resumen ejecutivo
 
@@ -978,3 +980,85 @@ en limpio. Esta auditoría no modifica metadata ni crea el tag.
 
 Phase 04 queda aceptada para su alcance educativo local. Phase 05 no fue
 iniciada.
+
+## W. Finalización de metadata para v0.4.0
+
+Fecha: 2026-10-26 (America/Managua)
+Resultado de metadata y Quality Gate: **PASS**
+Resultado de consistencia del tag: **BLOCKED**
+
+`apps/api/pyproject.toml` es la fuente canónica de la versión de release. Su
+valor se actualizó de `0.1.0` a `0.4.0`. El default operativo
+`Settings.APP_VERSION`, `.env.example`, el entorno determinista de tests y las
+expectativas de health/OpenAPI fueron alineados con la misma versión.
+
+La configuración predeterminada ahora produce:
+
+```text
+package_version=0.4.0
+settings_version=0.4.0
+health_version=0.4.0
+openapi_info_version=0.4.0
+```
+
+Las referencias históricas a Phase 01 `0.1.0` y a los tags `v0.1.0`, `v0.2.0`
+y `v0.3.0` se conservaron. No se modificaron NVD, KEV, EPSS, correlación,
+CVSS/CWE/CPE ni los correctivos de concurrencia.
+
+La metadata queda preparada para el handoff de release. Sin embargo, durante esta
+tarea apareció un tag anotado local y remoto `v0.4.0` que no existía en el
+baseline inicial. El tag apunta a `e09092b20469807c4d172b1fddb13edae86db393`,
+donde `pyproject.toml` y `Settings.APP_VERSION` todavía declaran `0.1.0`.
+
+La auditoría no creó, movió ni eliminó el tag. La publicación `v0.4.0` no es
+coherente con su contenido y requiere una decisión explícita del responsable de
+release: retirar/recrear el tag si aún no fue consumido, o preservar la referencia
+publicada y emitir una versión correctiva. No debe forzarse el movimiento sin
+evaluar consumidores y trazabilidad. Phase 05 no fue iniciada.
+
+## X. Release Recovery 04.01 para v0.4.1
+
+Fecha: 2026-10-26 (America/Managua)
+HEAD auditado: `e09092b20469807c4d172b1fddb13edae86db393`
+Estado: **PASS — preparado, tag no creado**
+
+`main`, `HEAD` y `origin/main` coinciden. No hay commits posteriores al tag
+anotado publicado `v0.4.0`: su objeto es
+`5940097858924f816eeeb3383b4135f4569312f2` y apunta exactamente a
+`e09092b20469807c4d172b1fddb13edae86db393`. En ese commit,
+`apps/api/pyproject.toml` y el default de `Settings.APP_VERSION` declaran
+`0.1.0`. La aceptación técnica de Phase 04 sí está incluida en ese mismo commit.
+
+La auditoría también comprobó que los cambios posteriores de metadata a `0.4.0`
+no habían sido commiteados: estaban únicamente en el working tree. Como
+`v0.4.1` no existe local ni remotamente, esos cambios pendientes se alinearon de
+forma controlada con la versión correctiva `0.4.1`.
+
+`apps/api/pyproject.toml` continúa siendo la fuente canónica. El default de
+Settings, `.env.example`, el entorno determinista de tests, las expectativas de
+health/OpenAPI y la documentación de versión actual reflejan `0.4.1`. Las
+referencias históricas a `v0.1.0`, `v0.2.0`, `v0.3.0` y `v0.4.0` se conservan.
+
+La decisión de release es preservar `v0.4.0` intacto y preparar `v0.4.1` como
+corrección trazable. No se modificaron NVD, KEV, EPSS, CPE, correlación,
+CVSS/CWE ni los tres correctivos de concurrencia. La aceptación educativa local
+no equivale a preparación para producción pública. Esta tarea no crea tags,
+commits, ramas ni pushes y no inicia Phase 05.
+
+La verificación focalizada de configuración y contratos pasó con 68/68 tests.
+La instalación editable del mismo proyecto local fue actualizada a `0.4.1` sin
+instalar dependencias de runtime adicionales. La verificación efectiva produjo:
+
+```text
+pyproject_version=0.4.1
+package_version=0.4.1
+settings_version=0.4.1
+health_version=0.4.1
+openapi_info_version=0.4.1
+```
+
+El Quality Gate completo pasó con 706/706 pruebas y 93.37% de cobertura
+statement/branch. Ruff lint y format pasaron sobre 116 archivos, mypy strict
+pasó sobre 97 archivos y `pip check` no encontró dependencias rotas. El control
+`git diff --check` pasó sin errores. `v0.4.0` se conserva intacto y `v0.4.1` no
+fue creado durante esta tarea.

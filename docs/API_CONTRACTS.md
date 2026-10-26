@@ -1,4 +1,4 @@
-# iCYLENS API Contracts — Baseline 0.1.0
+# iCYLENS API Contracts — Corrective Release 0.4.1
 
 ## Phase 04.03 CISA KEV intelligence
 
@@ -88,7 +88,7 @@ Example:
 {
   "status": "healthy",
   "service": "iCYLENS API",
-  "version": "0.1.0",
+  "version": "0.4.1",
   "message": "iCYLENS backend is operational"
 }
 ```

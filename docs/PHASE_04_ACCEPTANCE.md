@@ -144,7 +144,7 @@ incluida expansión gzip, y los streams se cierran tras éxito, error o cancelac
 - sin persistencia obligatoria ni lockfile de dependencias;
 - dependencia operativa de proveedores externos;
 - digest KEV demuestra integridad de bytes, no firma/autenticidad del contenido;
-- metadata de paquete y aplicación todavía `0.1.0`;
+- metadata de paquete, configuración, health y OpenAPI alineada en `0.4.1`;
 - cancelación cooperativa no puede detener forzosamente una coroutine hostil.
 
 Estas limitaciones no invalidan el alcance educativo local, pero sí impiden
@@ -164,17 +164,31 @@ Se requieren, como mínimo, identidad y autorización, controles distribuidos,
 operación durable del catálogo, estrategia de dependencias reproducible y
 hardening de despliegue.
 
-## 10. Decisión de release v0.4.0
+## 10. Historia de release v0.4.0 y corrección v0.4.1
 
-`v0.4.0` queda **RECOMENDADO CON PRERREQUISITOS**, no autorizado para creación
-inmediata por esta auditoría:
+La metadata efectiva del working tree está alineada en `0.4.1`:
 
-1. actualizar `apps/api/pyproject.toml:7` de `0.1.0` a `0.4.0`;
-2. actualizar el default `APP_VERSION` en `apps/api/app/core/config.py:27` y las
-   expectativas relacionadas;
-3. commitear este documento y la actualización final del informe;
-4. repetir el Quality Gate desde un working tree limpio;
-5. crear el tag solo si `main`, `origin/main`, metadata y evidencia coinciden.
+1. `apps/api/pyproject.toml` declara `0.4.1` como versión canónica del paquete;
+2. `Settings.APP_VERSION` y `.env.example` usan `0.4.1`;
+3. health y OpenAPI publican `0.4.1` en la configuración predeterminada;
+4. los tests de versión validan explícitamente `0.4.1`;
+5. la corrección debe commitearse y validarse desde un working tree limpio antes
+   de crear el tag.
+
+La publicación concreta `v0.4.0` queda **BLOCKED**. Durante la finalización
+apareció un tag anotado local y remoto `v0.4.0`, creado por otro actor, que apunta
+a `e09092b20469807c4d172b1fddb13edae86db393`. Ese commit todavía contiene
+metadata `0.1.0`; por tanto, el tag no representa el contenido versionado como
+`0.4.0`.
+
+La decisión conservadora es preservar la referencia publicada y emitir la
+versión correctiva `v0.4.1`. Esta auditoría no creó, movió ni eliminó `v0.4.0`;
+tampoco creó `v0.4.1`. Al iniciar Release Recovery 04.01, `v0.4.1` estaba libre
+tanto local como remotamente.
+
+Esta corrección documenta la historia de release sin cambiar los hallazgos ni la
+aceptación técnica de Phase 04. La calificación continúa siendo **READY WITH
+CONDITIONS** para uso educativo local y **NOT READY** para producción pública.
 
 La ausencia de lockfile debe permanecer documentada como riesgo de
 reproducibilidad aunque no bloquea esta aceptación educativa.
