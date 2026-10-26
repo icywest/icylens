@@ -317,9 +317,13 @@ def test_openapi_contains_checkpoint_contracts_once(client: TestClient) -> None:
         "/api/v1/behavior/schema",
         "/api/v1/behavior/rules",
         "/api/v1/behavior/rules/evaluate",
+        "/api/v1/behavior/sequences/correlate",
+        "/api/v1/behavior/sequences/schema",
     }
     assert "AnalysisRequest" in schema["components"]["schemas"]
     assert "HealthResponse" in schema["components"]["schemas"]
+    assert "TemporalCorrelationRequest" in schema["components"]["schemas"]
+    assert "TemporalCorrelationResult" in schema["components"]["schemas"]
     health_response = schema["paths"]["/api/v1/health/"]["get"]["responses"]["200"]
     assert (
         health_response["content"]["application/json"]["schema"]["$ref"]
