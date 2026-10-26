@@ -476,6 +476,35 @@ class StubEPSSClient:
         self.closed = True
 
 
+class LifecycleEPSSClient:
+    def __init__(self, *, error: Exception | None = None) -> None:
+        self.error = error
+        self.release = asyncio.Event()
+        self.started = asyncio.Event()
+        self.cancelled = asyncio.Event()
+        self.calls: list[str] = []
+        self.cancelled_cves: list[str] = []
+        self.closed = False
+
+    async def fetch_cve(self, cve_id: str) -> FIRSTEPSSResponse:
+        self.calls.append(cve_id)
+        self.started.set()
+        try:
+            await self.release.wait()
+        except asyncio.CancelledError:
+            self.cancelled_cves.append(cve_id)
+            self.cancelled.set()
+            raise
+        if self.error is not None:
+            raise self.error
+        document = payload()
+        document["data"][0]["cve"] = cve_id
+        return FIRSTEPSSResponse.model_validate(document)
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
 def service(
     stub: StubEPSSClient,
     *,
@@ -488,6 +517,15 @@ def service(
         stub,
         now=lambda: now,
         clock=clock,
+    )
+
+
+def lifecycle_service(client: LifecycleEPSSClient) -> EPSSIntelligenceService:
+    return EPSSIntelligenceService(
+        settings(),
+        client,
+        now=lambda: NOW,
+        clock=lambda: 100.0,
     )
 
 
@@ -584,7 +622,9 @@ def test_cache_coalesces_identical_requests_but_not_different_cves() -> None:
         gate = asyncio.Event()
         stub = StubEPSSClient(gate=gate)
         current = service(stub)
-        same = [asyncio.create_task(current.lookup("CVE-2021-44228")) for _ in range(3)]
+        same = [
+            asyncio.create_task(current.lookup("CVE-2021-44228")) for _ in range(10)
+        ]
         for _ in range(10):
             await asyncio.sleep(0)
             if stub.calls:
@@ -599,6 +639,223 @@ def test_cache_coalesces_identical_requests_but_not_different_cves() -> None:
         stub.responses.append(FIRSTEPSSResponse.model_validate(other_document))
         await current.lookup("CVE-2022-0001")
         assert stub.calls[-1] == "CVE-2022-0001"
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_one_cancelled_waiter_does_not_cancel_a_shared_fetch() -> None:
+    async def exercise() -> None:
+        provider = LifecycleEPSSClient()
+        current = lifecycle_service(provider)
+        first = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        await provider.started.wait()
+        second = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        await asyncio.sleep(0)
+        operation = current._inflight["CVE-2021-44228"]
+        assert operation.active_waiters == 2
+
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert operation.active_waiters == 1
+        assert not operation.task.cancelled()
+        assert provider.cancelled_cves == []
+
+        provider.release.set()
+        assert (await second).cve_id == "CVE-2021-44228"
+        assert provider.calls == ["CVE-2021-44228"]
+        assert current._inflight == {}
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_last_cancelled_waiter_cancels_collects_and_does_not_cache() -> None:
+    async def exercise() -> None:
+        provider = LifecycleEPSSClient()
+        current = lifecycle_service(provider)
+        first = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        second = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        await provider.started.wait()
+        await asyncio.sleep(0)
+
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        assert not provider.cancelled.is_set()
+        second.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await second
+
+        assert provider.cancelled.is_set()
+        assert provider.cancelled_cves == ["CVE-2021-44228"]
+        assert current._inflight == {}
+        assert current._cache == {}
+        assert [
+            task for task in asyncio.all_tasks() if task is not asyncio.current_task()
+        ] == []
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_distinct_cancelled_cves_release_saturated_client_capacity() -> None:
+    async def exercise() -> None:
+        release = asyncio.Event()
+        started = asyncio.Event()
+        streams: list[InstrumentedStream] = []
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            document = payload()
+            document["data"][0]["cve"] = request.url.params["cve"]
+            stream = InstrumentedStream([json.dumps(document).encode()], wait=release)
+            streams.append(stream)
+            started.set()
+            return httpx.Response(
+                200,
+                headers={"content-type": "application/json"},
+                stream=stream,
+            )
+
+        provider = EPSSClient(
+            settings(EPSS_MAX_CONCURRENCY=1),
+            transport=httpx.MockTransport(handler),
+        )
+        current = EPSSIntelligenceService(
+            settings(), provider, now=lambda: NOW, clock=lambda: 100.0
+        )
+        cves = tuple(f"CVE-2026-{index:04d}" for index in range(1000, 1005))
+        waiters = [asyncio.create_task(current.lookup(cve)) for cve in cves]
+        await started.wait()
+        for _ in range(10):
+            if len(current._inflight) == len(cves):
+                break
+            await asyncio.sleep(0)
+        assert len(current._inflight) == len(cves)
+        assert provider._concurrency._value == 0
+
+        for waiter in waiters:
+            waiter.cancel()
+        results = await asyncio.gather(*waiters, return_exceptions=True)
+        assert all(isinstance(item, asyncio.CancelledError) for item in results)
+        assert current._inflight == {}
+        assert current._cache == {}
+        assert provider._concurrency._value == 1
+        assert streams and streams[0].closed
+        assert [
+            task for task in asyncio.all_tasks() if task is not asyncio.current_task()
+        ] == []
+        await provider.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_cancelled_operation_is_not_reused_by_a_rejoining_waiter() -> None:
+    class SlowCancellationClient(LifecycleEPSSClient):
+        def __init__(self) -> None:
+            super().__init__()
+            self.finish_cancellation = asyncio.Event()
+
+        async def fetch_cve(self, cve_id: str) -> FIRSTEPSSResponse:
+            self.calls.append(cve_id)
+            self.started.set()
+            if len(self.calls) == 1:
+                try:
+                    await self.release.wait()
+                except asyncio.CancelledError:
+                    self.cancelled_cves.append(cve_id)
+                    self.cancelled.set()
+                    await self.finish_cancellation.wait()
+                    raise
+            document = payload()
+            document["data"][0]["cve"] = cve_id
+            return FIRSTEPSSResponse.model_validate(document)
+
+    async def exercise() -> None:
+        provider = SlowCancellationClient()
+        current = lifecycle_service(provider)
+        abandoned = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        await provider.started.wait()
+        abandoned.cancel()
+        await provider.cancelled.wait()
+
+        replacement = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        result = await replacement
+        assert result.cve_id == "CVE-2021-44228"
+        assert provider.calls == ["CVE-2021-44228", "CVE-2021-44228"]
+
+        provider.finish_cancellation.set()
+        with pytest.raises(asyncio.CancelledError):
+            await abandoned
+        assert current._inflight == {}
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_provider_completion_and_last_waiter_cancellation_race_is_collected() -> None:
+    async def exercise() -> None:
+        provider = LifecycleEPSSClient()
+        current = lifecycle_service(provider)
+        waiter = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        await provider.started.wait()
+        provider.release.set()
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        assert current._inflight == {}
+        assert len(current._cache) <= 1
+        assert [
+            task for task in asyncio.all_tasks() if task is not asyncio.current_task()
+        ] == []
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_provider_error_near_cancellation_is_retrieved_and_cleaned() -> None:
+    async def exercise() -> None:
+        provider = LifecycleEPSSClient(error=EPSSUnavailableError("offline"))
+        current = lifecycle_service(provider)
+        waiter = asyncio.create_task(current.lookup("CVE-2021-44228"))
+        await provider.started.wait()
+        provider.release.set()
+        await asyncio.sleep(0)
+        waiter.cancel()
+        result = await asyncio.gather(waiter, return_exceptions=True)
+        assert isinstance(result[0], (asyncio.CancelledError, EPSSUnavailableError))
+        assert current._inflight == {}
+        assert current._cache == {}
+        assert [
+            task for task in asyncio.all_tasks() if task is not asyncio.current_task()
+        ] == []
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_lifespan_shutdown_cancels_service_tasks_before_closing_client() -> None:
+    async def exercise() -> None:
+        provider = LifecycleEPSSClient()
+        application = create_app(
+            settings(),
+            epss_client_factory=lambda _: provider,  # type: ignore[arg-type,return-value]
+        )
+        waiter: asyncio.Task[EPSSLookupResult]
+        async with application.router.lifespan_context(application):
+            current = cast(EPSSIntelligenceService, application.state.epss_service)
+            waiter = asyncio.create_task(current.lookup("CVE-2021-44228"))
+            await provider.started.wait()
+            assert provider.closed is False
+        await asyncio.gather(waiter, return_exceptions=True)
+        assert provider.cancelled.is_set()
+        assert provider.closed is True
+        assert current._inflight == {}
+        assert [
+            task for task in asyncio.all_tasks() if task is not asyncio.current_task()
+        ] == []
 
     asyncio.run(exercise())
 
