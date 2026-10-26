@@ -1,5 +1,27 @@
 # iCYLENS Development Log
 
+## Phase 04 / Checkpoint 04.01.1: NVD HTTP Resource Safety Hardening
+
+Corrected the independent-review finding that `AsyncClient.get()` buffered and
+decoded the complete NVD body before the application size check. The integration
+now uses true HTTPX streaming, decoded-byte early abort, deterministic response
+cleanup, a total operation deadline, explicit `trust_env=False`, strict NVD
+format/version validation, and separate provider-generation provenance. Added
+instrumented plain/gzip/deflate/interruption tests, concurrency/deadline/cancel
+tests, complete CPE semantic assertions, and a FastAPI-to-MockTransport test.
+The unified gate passed with 462 tests and 94.42% total coverage; Ruff, strict
+mypy, and `pip check` also passed. A controlled live NVD lookup verified the
+matching record after hardening. Full evidence is in the 04.01.1 security review.
+
+## Phase 04 / Checkpoint 04.01: NVD CVE Data Contracts & Secure API Integration
+
+Implemented strict canonical CVE contracts, NVD 2.0 provider contracts, secure
+bounded HTTP transport, explicit normalization/provenance, a typed lookup route,
+synthetic offline fixtures, adversarial tests, and a one-request live smoke CLI.
+HTTPX moved from dev-only to runtime; no package was added. Static-analysis and ML
+behavior remain unchanged. Final metrics are in
+`PHASE_04_CHECKPOINT_04_01_ACCEPTANCE.md`.
+
 ## Phase 03 / Checkpoint 03.05: Trusted Local ML Inference
 
 Status: PASS - 388 tests passed (36 focused inference cases added), total

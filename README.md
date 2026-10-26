@@ -1,5 +1,15 @@
 # iCYLENS
 
+## Phase 04 vulnerability intelligence
+
+Checkpoint 04.01 adds a read-only typed integration with the official NVD CVE API
+2.0 at `GET /api/v1/vulnerabilities/CVE-2021-44228`. It validates identity,
+bounds HTTP work and response size, and returns canonical CVE, CVSS, CWE, CPE,
+reference, provenance, and limitation contracts. It does not scan assets, confirm
+exploitation, detect malware, or calculate risk. See
+[`docs/NVD_INTEGRATION.md`](docs/NVD_INTEGRATION.md) and
+[`docs/VULNERABILITY_DATA_CONTRACTS.md`](docs/VULNERABILITY_DATA_CONTRACTS.md).
+
 iCYLENS is an experimental cybersecurity analysis platform. Phase 02 now
 provides a typed FastAPI backend with bounded, non-persistent file ingestion,
 deterministic static feature extraction, and a unified static-analysis report

@@ -1,5 +1,14 @@
 # iCYLENS API Contracts — Baseline 0.1.0
 
+## Phase 04.01 vulnerability lookup
+
+`GET /api/v1/vulnerabilities/{cve_id}` accepts only uppercase IDs matching the
+public CVE pattern. It has no body or URL parameter. HTTP 200 returns
+`VulnerabilityRecord` 1.0.0. Errors are 404 absent, 422 invalid identifier, 429
+capacity, 502 invalid provider response, 503 unavailable, 504 timeout, and a
+sanitized 500. See
+[`VULNERABILITY_DATA_CONTRACTS.md`](VULNERABILITY_DATA_CONTRACTS.md).
+
 The machine-readable source of truth is the generated OpenAPI document at
 `/openapi.json`. Swagger UI is available at `/docs` and ReDoc at `/redoc`.
 This document summarizes the accepted Phase 01 surface and the implemented

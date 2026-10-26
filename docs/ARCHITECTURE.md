@@ -1,5 +1,22 @@
 # iCYLENS Backend Architecture
 
+## Phase 04 Checkpoint 04.01 NVD boundary
+
+The vulnerability route calls a provider-independent service. The service accepts
+validated provider models from a bounded NVD client and builds the versioned
+canonical contract. Raw external JSON never reaches route logic. FastAPI owns one
+client for its lifespan and closes it on shutdown. Transport, provider schemas,
+normalization, and public response contracts remain separate; ML/static-analysis
+engines are unchanged. See [`NVD_INTEGRATION.md`](NVD_INTEGRATION.md).
+
+Checkpoint 04.01.1 hardens the transport boundary. Successful responses remain
+open and unbuffered until the integration counts decoded chunks; every status,
+size, transport, timeout, or cancellation path closes the response. A total
+deadline contains semaphore wait, attempts, body streaming, and backoff, while
+HTTPX retains per-phase timeouts. Environment-derived proxies and CA bundles are
+disabled with `trust_env=False`. Provider `format` and `version` now form part of
+the validated boundary rather than inferred provenance.
+
 ## System overview
 
 iCYLENS `0.1.0` currently provides a Python 3.12/3.13 backend foundation and a
