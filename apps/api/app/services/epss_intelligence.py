@@ -123,20 +123,35 @@ class EPSSIntelligenceService:
         try:
             provider = await self._client.fetch_cve(cve_id)
             result = self._normalize(cve_id, provider)
-            async with self._lock:
-                self._cache[cve_id] = _CacheEntry(
-                    result=result,
-                    expires_at=self._clock() + self._ttl,
-                )
-                self._cache.move_to_end(cve_id)
-                while len(self._cache) > self._maximum_entries:
-                    self._cache.popitem(last=False)
+            await self._commit_if_authorized(cve_id, result)
             return result
         finally:
             async with self._lock:
                 operation = self._inflight.get(cve_id)
                 if operation is not None and operation.task is asyncio.current_task():
                     del self._inflight[cve_id]
+
+    async def _commit_if_authorized(
+        self, cve_id: str, result: EPSSLookupResult
+    ) -> bool:
+        task = asyncio.current_task()
+        async with self._lock:
+            operation = self._inflight.get(cve_id)
+            if (
+                self._closed
+                or operation is None
+                or operation.task is not task
+                or operation.cancellation_requested
+            ):
+                return False
+            self._cache[cve_id] = _CacheEntry(
+                result=result,
+                expires_at=self._clock() + self._ttl,
+            )
+            self._cache.move_to_end(cve_id)
+            while len(self._cache) > self._maximum_entries:
+                self._cache.popitem(last=False)
+            return True
 
     def _normalize(self, cve_id: str, response: FIRSTEPSSResponse) -> EPSSLookupResult:
         retrieved_at = self._normalized_now()
