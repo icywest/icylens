@@ -330,3 +330,12 @@ Dependency vulnerability scanning is not part of the mandatory offline gate.
 The Phase 01 audit ran `pip-audit` in a disposable clean virtual environment
 and found no known vulnerabilities in the declared dependency closure. Add an
 audit step to CI when network and advisory-database access are available.
+
+## FIRST EPSS point intelligence
+
+Phase 04.04 adds a secure, read-only FIRST EPSS point lookup at
+`GET /api/v1/intelligence/epss/{cve_id}`. Scores retain decimal precision and
+their FIRST publication date; absence, freshness, and provenance are explicit.
+EPSS is neither CVSS severity nor proof of exploitation or compromise. See
+[`docs/FIRST_EPSS_INTEGRATION.md`](docs/FIRST_EPSS_INTEGRATION.md) and
+[`docs/EPSS_SCORE_SEMANTICS.md`](docs/EPSS_SCORE_SEMANTICS.md).

@@ -370,6 +370,20 @@ window, bounded extraction settings, and unconditional upload cleanup as the
 existing endpoints. It performs no execution, deserialization, network lookup,
 sample/report persistence, malware classification, or scoring.
 
+## FIRST EPSS point lookup
+
+`GET /api/v1/intelligence/epss/{cve_id}` accepts only a case-sensitive CVE
+path identifier and performs one current FIRST lookup. HTTP 200 returns the
+strict `EPSSLookupResult`: `available` includes exact decimal-string `score`
+and `percentile`, `score_date`, freshness, provenance, and limitations;
+`not_scored` returns null numeric/date fields and `unavailable` freshness.
+Provider failures use 429/502/503/504 rather than pretending to be score
+absence. The endpoint accepts no body, URL, provider filters, or batch input.
+
+EPSS probability, percentile rank, score date, retrieval time, API version,
+and optional model version remain separate. The current point API provides no
+verifiable model-version field, so it is null.
+
 ### Lifecycle and report invariants
 
 The operation is synchronous. HTTP 200 always carries `status: "completed"`

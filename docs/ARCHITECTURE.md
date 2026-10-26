@@ -481,3 +481,13 @@ static-service composition, thread offload, feature extraction, and response
 assembly. `ml/model_runtime.py` owns lifecycle, compatibility and probability
 validation. No request can train, name a model path, deserialize an artifact,
 access test, select another candidate, or obtain an operational verdict.
+
+## Phase 04 Checkpoint 04.04 FIRST EPSS
+
+Application lifespan owns one hardened `EPSSClient` and one
+`EPSSIntelligenceService`. The client validates and bounds the untrusted FIRST
+HTTP response; provider Pydantic schemas validate the envelope and decimals;
+the service enforces identity, normalizes provenance/freshness, and owns a
+bounded process-local TTL/LRU cache; the route exposes only a typed single-CVE
+GET. EPSS remains independent of NVD interpretation, KEV snapshots, CPE
+applicability, and ML inference. No correlation or combined scoring occurs.

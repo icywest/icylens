@@ -357,3 +357,19 @@ contracts and documentation.
   architecture/API/README/acceptance documents.
 
 No commits, tags, or pushes created. All changes are local and reversible.
+
+## Phase 04 / Checkpoint 04.04 — FIRST EPSS integration
+
+Implemented a fixed-endpoint, bounded streaming FIRST client; strict decimal
+and envelope contracts; canonical provenance and freshness; explicit
+`not_scored`; a bounded in-memory TTL/LRU cache; and the typed single-CVE EPSS
+route. Added adversarial offline fixtures/tests, a controlled live smoke script,
+configuration documentation, and semantic guidance. No unified scoring, ML,
+CPE connection, bulk ingestion, Git release action, or 04.05 work was added.
+Final gate measurements are recorded in the checkpoint acceptance report and
+handoff.
+
+Final evidence: 621 tests passed (66 added), 93.15% branch coverage, Ruff
+lint/format PASS, strict mypy PASS over 93 source files, `pip check` PASS, and
+the unified Quality Gate PASS. One controlled live FIRST lookup validated the
+requested CVE and returned a score dated 2026-10-25 with current freshness.
