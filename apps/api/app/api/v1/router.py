@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.routes import (
     analyses,
+    attack,
     content_inspections,
     epss_intelligence,
     fingerprints,
@@ -17,6 +18,7 @@ from app.api.v1.routes import (
 api_router = APIRouter()
 
 api_router.include_router(health.router)
+api_router.include_router(attack.router)
 api_router.include_router(kev_intelligence.router)
 api_router.include_router(epss_intelligence.router)
 api_router.include_router(unified_vulnerabilities.router)
