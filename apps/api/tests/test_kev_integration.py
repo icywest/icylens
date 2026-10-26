@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+import app.intelligence.kev_catalog as kev_catalog_module
 from app.core.config import Settings
 from app.integrations.cisa_kev.client import (
     FetchedKEVCatalog,
@@ -26,6 +27,7 @@ from app.integrations.cisa_kev.client import (
 )
 from app.integrations.cisa_kev.schemas import CISAKEVCatalog
 from app.intelligence.kev_catalog import (
+    KEVCatalogSnapshot,
     KEVCatalogStore,
     KEVCatalogUnavailableError,
     KEVCatalogValidationError,
@@ -118,6 +120,46 @@ class LifecycleKEVClient(StubFetcher):
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+class BlockingKEVFetcher:
+    def __init__(
+        self,
+        result: FetchedKEVCatalog | Exception,
+        *,
+        suppress_cancellation: bool = False,
+    ) -> None:
+        self.result = result
+        self.suppress_cancellation = suppress_cancellation
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self.cancelled = asyncio.Event()
+        self.finish_after_cancellation = asyncio.Event()
+        self.calls = 0
+
+    async def fetch_catalog(self) -> FetchedKEVCatalog:
+        self.calls += 1
+        self.started.set()
+        try:
+            await self.release.wait()
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            if not self.suppress_cancellation:
+                raise
+            await self.finish_after_cancellation.wait()
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+class PromotionObservedKEVStore(KEVCatalogStore):
+    def __init__(self, configured: Settings) -> None:
+        super().__init__(configured, now=lambda: NOW)
+        self.promotion_started = asyncio.Event()
+
+    async def _promote_if_authorized(self, candidate: KEVCatalogSnapshot) -> bool:
+        self.promotion_started.set()
+        return await super()._promote_if_authorized(candidate)
 
 
 class InstrumentedStream(httpx.AsyncByteStream):
@@ -337,6 +379,244 @@ def test_concurrent_refreshes_are_coalesced_and_lookups_do_not_fetch() -> None:
     assert fetcher.calls == 1
 
 
+@pytest.mark.security
+def test_refresh_releases_lock_coalesces_and_survives_consumer_cancel() -> None:
+    async def exercise() -> None:
+        fetcher = BlockingKEVFetcher(fetched())
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        first = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+        second = asyncio.create_task(store.refresh(fetcher))
+        await asyncio.sleep(0)
+
+        async with asyncio.timeout(0.1):
+            async with store._refresh_lock:
+                registered = store._refresh_task
+                assert registered is not None
+        assert fetcher.calls == 1
+
+        first.cancel()
+        first_result = await asyncio.gather(first, return_exceptions=True)
+        assert isinstance(first_result[0], asyncio.CancelledError)
+        assert not fetcher.cancelled.is_set()
+        assert not second.done()
+
+        fetcher.release.set()
+        result = await second
+        assert result is store.snapshot
+        assert fetcher.calls == 1
+        assert store._refresh_task is None
+        assert [
+            task
+            for task in asyncio.all_tasks()
+            if task is not asyncio.current_task() and not task.done()
+        ] == []
+        await store.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_service_owned_refresh_outlives_its_only_cancelled_consumer() -> None:
+    async def exercise() -> None:
+        fetcher = BlockingKEVFetcher(fetched())
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        consumer = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+        operation = store._refresh_task
+        assert operation is not None
+
+        consumer.cancel()
+        outcome = await asyncio.gather(consumer, return_exceptions=True)
+        assert isinstance(outcome[0], asyncio.CancelledError)
+        assert not operation.done()
+        assert not fetcher.cancelled.is_set()
+
+        fetcher.release.set()
+        result = await operation
+        assert store.snapshot is result
+        assert store._refresh_task is None
+        await store.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_coalesced_provider_failure_preserves_snapshot_and_cleans_task() -> None:
+    async def exercise() -> None:
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        original = await store.refresh(StubFetcher(fetched()))
+        fetcher = BlockingKEVFetcher(KEVUnavailableError("offline"))
+        first = asyncio.create_task(store.refresh(fetcher))
+        second = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+        await asyncio.sleep(0)
+        fetcher.release.set()
+
+        outcomes = await asyncio.gather(first, second, return_exceptions=True)
+        assert all(isinstance(item, KEVUnavailableError) for item in outcomes)
+        assert fetcher.calls == 1
+        assert store.snapshot is original
+        assert store._refresh_task is None
+        assert [
+            task
+            for task in asyncio.all_tasks()
+            if task is not asyncio.current_task() and not task.done()
+        ] == []
+        await store.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_coalesced_invalid_candidate_never_replaces_active_snapshot() -> None:
+    async def exercise() -> None:
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        original = await store.refresh(StubFetcher(fetched()))
+        invalid = payload()
+        invalid["count"] = 2
+        fetcher = BlockingKEVFetcher(fetched(invalid))
+        first = asyncio.create_task(store.refresh(fetcher))
+        second = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+        await asyncio.sleep(0)
+        fetcher.release.set()
+
+        outcomes = await asyncio.gather(first, second, return_exceptions=True)
+        assert all(isinstance(item, KEVCatalogValidationError) for item in outcomes)
+        assert fetcher.calls == 1
+        assert store.snapshot is original
+        assert store._refresh_task is None
+        await store.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_cancellation_during_validation_cannot_publish(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_builder = kev_catalog_module.build_snapshot
+
+    def cancel_after_validation(
+        candidate: FetchedKEVCatalog,
+        fetched_at: datetime,
+        maximum_entries: int,
+    ) -> KEVCatalogSnapshot:
+        snapshot = original_builder(candidate, fetched_at, maximum_entries)
+        task = asyncio.current_task()
+        assert task is not None
+        task.cancel()
+        return snapshot
+
+    monkeypatch.setattr(kev_catalog_module, "build_snapshot", cancel_after_validation)
+
+    async def exercise() -> None:
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        outcome = await asyncio.gather(
+            store.refresh(StubFetcher(fetched())), return_exceptions=True
+        )
+        assert isinstance(outcome[0], asyncio.CancelledError)
+        assert store.snapshot is None
+        assert store._refresh_task is None
+        await store.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_shutdown_fences_cancellation_suppression_and_collects() -> None:
+    async def exercise() -> None:
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        original = await store.refresh(StubFetcher(fetched(digest="a" * 64)))
+        newer = payload([entry("CVE-2099-9998")])
+        newer["catalogVersion"] = "2099.10.21"
+        newer["dateReleased"] = "2026-10-25T12:00:00Z"
+        fetcher = BlockingKEVFetcher(fetched(newer), suppress_cancellation=True)
+        waiter = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+
+        shutdown = asyncio.create_task(store.aclose())
+        await fetcher.cancelled.wait()
+        assert store._closed is True
+        assert store._refresh_task is None
+        assert store.snapshot is original
+
+        fetcher.finish_after_cancellation.set()
+        await shutdown
+        outcome = await asyncio.gather(waiter, return_exceptions=True)
+        assert isinstance(outcome[0], asyncio.CancelledError)
+        assert store.snapshot is original
+        with pytest.raises(RuntimeError, match="closed"):
+            await store.refresh(fetcher)
+        assert [
+            task
+            for task in asyncio.all_tasks()
+            if task is not asyncio.current_task() and not task.done()
+        ] == []
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_shutdown_wins_before_atomic_snapshot_promotion() -> None:
+    async def exercise() -> None:
+        store = PromotionObservedKEVStore(settings())
+        fetcher = BlockingKEVFetcher(fetched())
+        waiter = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+
+        await store._refresh_lock.acquire()
+        try:
+            shutdown = asyncio.create_task(store.aclose())
+            await asyncio.sleep(0)
+            fetcher.release.set()
+            await store.promotion_started.wait()
+        finally:
+            store._refresh_lock.release()
+
+        await shutdown
+        outcome = await asyncio.gather(waiter, return_exceptions=True)
+        assert isinstance(outcome[0], asyncio.CancelledError)
+        assert store.snapshot is None
+        assert store._refresh_task is None
+        assert [
+            task
+            for task in asyncio.all_tasks()
+            if task is not asyncio.current_task() and not task.done()
+        ] == []
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
+def test_lookup_remains_available_during_background_refresh() -> None:
+    async def exercise() -> None:
+        store = KEVCatalogStore(settings(), now=lambda: NOW)
+        original = await store.refresh(StubFetcher(fetched()))
+        update = payload([entry("CVE-2099-9998")])
+        update["catalogVersion"] = "2099.10.21"
+        update["dateReleased"] = "2026-10-25T12:00:00Z"
+        fetcher = BlockingKEVFetcher(fetched(update))
+        refresh = asyncio.create_task(store.refresh(fetcher))
+        await fetcher.started.wait()
+
+        assert store.lookup("CVE-2099-9999").record is not None
+        assert store.snapshot is original
+        assert not refresh.done()
+        assert fetcher.calls == 1
+
+        fetcher.release.set()
+        promoted = await refresh
+        assert promoted is store.snapshot
+        assert store.lookup("CVE-2099-9998").record is not None
+        assert fetcher.calls == 1
+        assert store._refresh_task is None
+        await store.aclose()
+
+    asyncio.run(exercise())
+
+
 @pytest.mark.integration
 def test_client_streams_valid_catalog_and_uses_hardened_http_policy() -> None:
     requests: list[httpx.Request] = []
@@ -544,6 +824,35 @@ def test_client_retry_budget_is_finite() -> None:
 
 
 @pytest.mark.security
+def test_client_cancellation_during_retry_backoff_is_propagated() -> None:
+    async def exercise() -> None:
+        backoff_started = asyncio.Event()
+        never_release = asyncio.Event()
+        stream = InstrumentedStream([b"private"])
+
+        async def sleep(_: float) -> None:
+            backoff_started.set()
+            await never_release.wait()
+
+        client = KEVClient(
+            settings(KEV_MAX_RETRIES=2),
+            transport=httpx.MockTransport(lambda _: httpx.Response(503, stream=stream)),
+            sleep=sleep,
+            random_source=lambda: 0,
+        )
+        task = asyncio.create_task(client.fetch_catalog())
+        await backoff_started.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert stream.closed is True
+        assert client._concurrency._value == settings().KEV_MAX_CONCURRENCY
+        await client.aclose()
+
+    asyncio.run(exercise())
+
+
+@pytest.mark.security
 def test_client_total_deadline_and_cancellation_close_resources() -> None:
     async def slow_handler(_: httpx.Request) -> httpx.Response:
         await asyncio.sleep(0.05)
@@ -612,6 +921,7 @@ def test_optional_startup_refresh_is_bounded_nonfatal_and_client_is_closed(
         assert status_body["availability"] == ("fresh" if successful else "unavailable")
         assert kev_client.closed is False
     assert kev_client.calls == 1
+    assert application.state.kev_store._closed is True
     assert kev_client.closed is True
 
 
