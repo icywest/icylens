@@ -65,34 +65,35 @@ def create_app(
             kev_store,
             epss_service,
         )
-        if resolved_settings.KEV_REFRESH_ON_STARTUP:
-            try:
-                await kev_store.refresh(kev_client)
-            except (KEVClientError, KEVCatalogValidationError) as exc:
-                kev_logger.warning(
-                    "CISA KEV startup refresh failed with exception type %s",
-                    type(exc).__name__,
-                )
-            except Exception as exc:
-                kev_logger.error(
-                    "CISA KEV startup refresh failed with exception type %s",
-                    type(exc).__name__,
-                )
-        if (
-            resolved_settings.ML_INFERENCE_ENABLED
-            and resolved_settings.ML_DEMO_MODE_ENABLED
-        ):
-            try:
-                initializer(runtime)
-            except Exception as exc:
-                runtime.reject()
-                logger.error(
-                    "ML demo initialization failed with exception type %s",
-                    type(exc).__name__,
-                )
         try:
+            if resolved_settings.KEV_REFRESH_ON_STARTUP:
+                try:
+                    await kev_store.refresh(kev_client)
+                except (KEVClientError, KEVCatalogValidationError) as exc:
+                    kev_logger.warning(
+                        "CISA KEV startup refresh failed with exception type %s",
+                        type(exc).__name__,
+                    )
+                except Exception as exc:
+                    kev_logger.error(
+                        "CISA KEV startup refresh failed with exception type %s",
+                        type(exc).__name__,
+                    )
+            if (
+                resolved_settings.ML_INFERENCE_ENABLED
+                and resolved_settings.ML_DEMO_MODE_ENABLED
+            ):
+                try:
+                    initializer(runtime)
+                except Exception as exc:
+                    runtime.reject()
+                    logger.error(
+                        "ML demo initialization failed with exception type %s",
+                        type(exc).__name__,
+                    )
             yield
         finally:
+            await kev_store.aclose()
             await epss_service.aclose()
             await epss_client.aclose()
             await kev_client.aclose()

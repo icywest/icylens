@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import MappingProxyType
-from typing import Protocol, cast
+from typing import Protocol
 
 from app.core.config import Settings
 from app.integrations.cisa_kev.client import (
@@ -125,21 +125,61 @@ class KEVCatalogStore:
         self._snapshot: KEVCatalogSnapshot | None = None
         self._refresh_attempted = False
         self._refresh_lock = asyncio.Lock()
+        self._refresh_task: asyncio.Task[KEVCatalogSnapshot] | None = None
+        self._closed = False
 
     @property
     def snapshot(self) -> KEVCatalogSnapshot | None:
         return self._snapshot
 
     async def refresh(self, client: KEVCatalogFetcher) -> KEVCatalogSnapshot:
-        observed = self._snapshot
         async with self._refresh_lock:
-            if self._snapshot is not observed:
-                return cast(KEVCatalogSnapshot, self._snapshot)
-            self._refresh_attempted = True
+            if self._closed:
+                raise RuntimeError("KEV catalog store is closed")
+            task = self._refresh_task
+            if task is None:
+                self._refresh_attempted = True
+                task = asyncio.create_task(self._fetch_validate_promote(client))
+                task.add_done_callback(self._consume_refresh_result)
+                self._refresh_task = task
+        return await asyncio.shield(task)
+
+    async def aclose(self) -> None:
+        async with self._refresh_lock:
+            self._closed = True
+            task = self._refresh_task
+            self._refresh_task = None
+            if task is not None and not task.done():
+                task.cancel()
+        if task is not None:
+            await asyncio.gather(task, return_exceptions=True)
+
+    async def _fetch_validate_promote(
+        self, client: KEVCatalogFetcher
+    ) -> KEVCatalogSnapshot:
+        try:
             fetched = await client.fetch_catalog()
             candidate = build_snapshot(
                 fetched, self._now(), maximum_entries=self._maximum_entries
             )
+            if not await self._promote_if_authorized(candidate):
+                raise asyncio.CancelledError
+            return candidate
+        finally:
+            async with self._refresh_lock:
+                if self._refresh_task is asyncio.current_task():
+                    self._refresh_task = None
+
+    async def _promote_if_authorized(self, candidate: KEVCatalogSnapshot) -> bool:
+        task = asyncio.current_task()
+        async with self._refresh_lock:
+            if (
+                self._closed
+                or task is None
+                or task.cancelling()
+                or self._refresh_task is not task
+            ):
+                return False
             active = self._snapshot
             if active is not None:
                 if (
@@ -154,7 +194,14 @@ class KEVCatalogStore:
                         "Catalog release predates the active snapshot"
                     )
             self._snapshot = candidate
-            return candidate
+            return True
+
+    @staticmethod
+    def _consume_refresh_result(task: asyncio.Task[KEVCatalogSnapshot]) -> None:
+        try:
+            task.exception()
+        except asyncio.CancelledError:
+            pass
 
     def status(self) -> KEVCatalogStatus:
         snapshot = self._snapshot
