@@ -5,6 +5,7 @@ from app.api.v1.routes import (
     attack,
     behavior,
     behavior_rules,
+    behavior_sequences,
     content_inspections,
     epss_intelligence,
     fingerprints,
@@ -23,6 +24,7 @@ api_router.include_router(health.router)
 api_router.include_router(attack.router)
 api_router.include_router(behavior.router)
 api_router.include_router(behavior_rules.router)
+api_router.include_router(behavior_sequences.router)
 api_router.include_router(kev_intelligence.router)
 api_router.include_router(epss_intelligence.router)
 api_router.include_router(unified_vulnerabilities.router)

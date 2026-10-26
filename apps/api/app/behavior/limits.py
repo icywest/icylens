@@ -19,7 +19,13 @@ class BehaviorBodyLimitMiddleware:
     @staticmethod
     def _limit(scope: Scope) -> int | None:
         path = str(scope.get("path", ""))
-        if path.endswith(("/behavior/events/validate", "/behavior/rules/evaluate")):
+        if path.endswith(
+            (
+                "/behavior/events/validate",
+                "/behavior/rules/evaluate",
+                "/behavior/sequences/correlate",
+            )
+        ):
             return MAX_BATCH_BYTES
         if path.endswith("/behavior/scenarios/generate"):
             return MAX_GENERATION_BODY_BYTES
