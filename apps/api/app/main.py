@@ -20,6 +20,7 @@ from app.intelligence.kev_catalog import KEVCatalogStore, KEVCatalogValidationEr
 from app.ml.demo import initialize_synthetic_demo
 from app.ml.model_runtime import TrustedModelRuntime
 from app.schemas.ml_inference import ActiveModelDescriptor
+from app.services.attack_mapping import AttackMappingCapacity
 from app.services.epss_intelligence import EPSSIntelligenceService
 from app.services.ml_inference import InferenceCapacity
 from app.services.vulnerability_correlation import VulnerabilityCorrelationService
@@ -136,6 +137,7 @@ def create_app(
     application.state.ml_inference_capacity = InferenceCapacity(
         resolved_settings.ML_MAX_CONCURRENT_INFERENCES
     )
+    application.state.attack_mapping_capacity = AttackMappingCapacity()
     application.add_middleware(BehaviorBodyLimitMiddleware)
 
     application.include_router(

@@ -22,6 +22,7 @@ class BehaviorBodyLimitMiddleware:
         if path.endswith(
             (
                 "/behavior/events/validate",
+                "/behavior/attack/map",
                 "/behavior/rules/evaluate",
                 "/behavior/sequences/correlate",
             )
