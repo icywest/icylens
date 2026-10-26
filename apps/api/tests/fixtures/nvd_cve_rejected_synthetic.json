@@ -1,0 +1,21 @@
+{
+  "resultsPerPage": 1,
+  "startIndex": 0,
+  "totalResults": 1,
+  "format": "NVD_CVE",
+  "version": "2.0",
+  "timestamp": "2026-10-25T12:00:00.000",
+  "vulnerabilities": [
+    {
+      "cve": {
+        "id": "CVE-2020-1234",
+        "sourceIdentifier": "cve@mitre.org",
+        "published": "2020-01-01T00:00:00Z",
+        "lastModified": "2020-02-01T00:00:00Z",
+        "vulnStatus": "Rejected",
+        "descriptions": [{"lang": "en", "value": "REJECT synthetic test record."}],
+        "references": []
+      }
+    }
+  ]
+}

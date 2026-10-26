@@ -38,11 +38,22 @@ def test_env_example_contains_only_documented_non_secret_settings() -> None:
         "ICYLENS_ML_INFERENCE_ENABLED",
         "ICYLENS_ML_DEMO_MODE_ENABLED",
         "ICYLENS_ML_MAX_CONCURRENT_INFERENCES",
+        "ICYLENS_NVD_API_KEY",
+        "ICYLENS_NVD_TIMEOUT_SECONDS",
+        "ICYLENS_NVD_TOTAL_DEADLINE_SECONDS",
+        "ICYLENS_NVD_MAX_RESPONSE_BYTES",
+        "ICYLENS_NVD_MAX_CONCURRENCY",
+        "ICYLENS_NVD_REQUESTS_PER_WINDOW",
+        "ICYLENS_NVD_RATE_WINDOW_SECONDS",
+        "ICYLENS_NVD_MAX_RETRIES",
+        "ICYLENS_NVD_BACKOFF_SECONDS",
+        "ICYLENS_NVD_MAX_RETRY_AFTER_SECONDS",
     }
 
 
 def test_env_example_has_no_credential_fields() -> None:
     content = (API_ROOT / ".env.example").read_text(encoding="utf-8").lower()
-    credential_markers = ("password", "secret", "token", "api_key", "private_key")
+    credential_markers = ("password", "secret", "token", "private_key")
 
     assert not any(marker in content for marker in credential_markers)
+    assert "icylens_nvd_api_key=\n" in content
