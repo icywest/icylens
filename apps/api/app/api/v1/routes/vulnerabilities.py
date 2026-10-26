@@ -1,7 +1,9 @@
+import json
 import logging
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, HTTPException, Path, Request, status
+from pydantic import ValidationError
 
 from app.integrations.nvd.client import (
     NVDClient,
@@ -12,38 +14,36 @@ from app.integrations.nvd.client import (
     NVDUnavailableError,
 )
 from app.schemas.vulnerability import VulnerabilityRecord
+from app.schemas.vulnerability_interpretation import (
+    ApplicabilityAssessment,
+    AssetInventory,
+    VulnerabilityInterpretation,
+)
 from app.services.vulnerability_intelligence import VulnerabilityIntelligenceService
+from app.services.vulnerability_interpretation import (
+    VulnerabilityInterpretationService,
+)
 
 logger = logging.getLogger("icylens.vulnerability_intelligence")
 
 router = APIRouter(prefix="/vulnerabilities", tags=["Vulnerabilities"])
 
-
-@router.get(
-    "/{cve_id}",
-    response_model=VulnerabilityRecord,
-    summary="Retrieve and normalize one official NVD CVE record",
-    responses={
-        404: {"description": "NVD returned a valid response with no matching CVE."},
-        422: {"description": "The CVE identifier does not match the public contract."},
-        429: {"description": "The local or upstream NVD request budget is exhausted."},
-        502: {"description": "NVD returned an invalid or inconsistent response."},
-        503: {"description": "NVD is temporarily unavailable or denied the request."},
-        504: {"description": "The NVD request timed out."},
-        500: {"description": "The lookup could not be completed."},
-    },
+_CVE_PATH = Path(
+    pattern=r"^CVE-(1999|2\d{3})-\d{4,}$",
+    max_length=32,
+    description="Case-sensitive CVE identifier, for example CVE-2021-44228.",
 )
-async def get_vulnerability(
-    request: Request,
-    cve_id: Annotated[
-        str,
-        Path(
-            pattern=r"^CVE-(1999|2\d{3})-\d{4,}$",
-            max_length=32,
-            description="Case-sensitive CVE identifier, for example CVE-2021-44228.",
-        ),
-    ],
-) -> VulnerabilityRecord:
+_PROVIDER_RESPONSES: dict[int | str, dict[str, Any]] = {
+    404: {"description": "NVD returned no matching CVE."},
+    429: {"description": "The local or upstream request budget is exhausted."},
+    502: {"description": "NVD returned an invalid or inconsistent response."},
+    503: {"description": "NVD is unavailable or denied the request."},
+    504: {"description": "The NVD request timed out."},
+    500: {"description": "The operation could not be completed."},
+}
+
+
+async def _get_record(request: Request, cve_id: str) -> VulnerabilityRecord:
     client = cast(NVDClient, request.app.state.nvd_client)
     service = VulnerabilityIntelligenceService(client)
     try:
@@ -81,3 +81,89 @@ async def get_vulnerability(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Vulnerability lookup could not be completed.",
         ) from None
+
+
+async def _read_inventory(request: Request) -> AssetInventory:
+    maximum = request.app.state.settings.VULNERABILITY_MAX_INVENTORY_BODY_BYTES
+    declared = request.headers.get("content-length")
+    if declared is not None:
+        try:
+            if int(declared) > maximum:
+                raise HTTPException(413, "Asset inventory body is too large.")
+        except ValueError as error:
+            raise HTTPException(400, "Invalid Content-Length header.") from error
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > maximum:
+            raise HTTPException(413, "Asset inventory body is too large.")
+    try:
+        payload = json.loads(bytes(body))
+        return AssetInventory.model_validate(payload)
+    except (
+        json.JSONDecodeError,
+        UnicodeDecodeError,
+        ValidationError,
+        TypeError,
+    ) as error:
+        raise HTTPException(422, "Invalid asset inventory.") from error
+
+
+@router.get(
+    "/{cve_id}",
+    response_model=VulnerabilityRecord,
+    summary="Retrieve and normalize one official NVD CVE record",
+    responses={
+        404: {"description": "NVD returned a valid response with no matching CVE."},
+        422: {"description": "The CVE identifier does not match the public contract."},
+        429: {"description": "The local or upstream NVD request budget is exhausted."},
+        502: {"description": "NVD returned an invalid or inconsistent response."},
+        503: {"description": "NVD is temporarily unavailable or denied the request."},
+        504: {"description": "The NVD request timed out."},
+        500: {"description": "The lookup could not be completed."},
+    },
+)
+async def get_vulnerability(
+    request: Request,
+    cve_id: Annotated[str, _CVE_PATH],
+) -> VulnerabilityRecord:
+    return await _get_record(request, cve_id)
+
+
+@router.get(
+    "/{cve_id}/interpretation",
+    response_model=VulnerabilityInterpretation,
+    summary="Interpret source CVSS and CWE data without assessing an asset",
+    responses=_PROVIDER_RESPONSES,
+)
+async def get_vulnerability_interpretation(
+    request: Request, cve_id: Annotated[str, _CVE_PATH]
+) -> VulnerabilityInterpretation:
+    record = await _get_record(request, cve_id)
+    return VulnerabilityInterpretationService().interpret(record)
+
+
+@router.post(
+    "/{cve_id}/applicability",
+    response_model=ApplicabilityAssessment,
+    summary="Assess NVD CPE criteria against a bounded declared inventory",
+    responses={
+        **_PROVIDER_RESPONSES,
+        413: {"description": "The raw JSON body exceeds the configured byte limit."},
+        422: {"description": "The declared inventory is invalid."},
+    },
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": AssetInventory.model_json_schema()}
+            },
+        }
+    },
+)
+async def assess_vulnerability_applicability(
+    request: Request, cve_id: Annotated[str, _CVE_PATH]
+) -> ApplicabilityAssessment:
+    inventory = await _read_inventory(request)
+    record = await _get_record(request, cve_id)
+    return VulnerabilityInterpretationService().assess(record, inventory)

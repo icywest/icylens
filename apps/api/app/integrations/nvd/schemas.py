@@ -17,7 +17,9 @@ class NVDCVSSData(BaseModel):
 
     version: Annotated[str, Field(min_length=1, max_length=16)]
     vectorString: Annotated[str | None, Field(default=None, max_length=512)]
-    baseScore: Annotated[float, Field(ge=0, le=10, allow_inf_nan=False)]
+    baseScore: Annotated[
+        float | None, Field(default=None, ge=0, le=10, allow_inf_nan=False)
+    ]
     baseSeverity: Annotated[str | None, Field(default=None, max_length=32)]
 
 

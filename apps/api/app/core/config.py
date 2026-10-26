@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     NVD_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
     NVD_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=10)
     NVD_MAX_RETRY_AFTER_SECONDS: float = Field(default=10.0, ge=0, le=60)
+    VULNERABILITY_MAX_INVENTORY_BODY_BYTES: int = Field(
+        default=256 * 1024, ge=1024, le=2 * 1024 * 1024
+    )
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod
