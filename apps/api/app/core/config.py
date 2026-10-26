@@ -68,6 +68,21 @@ class Settings(BaseSettings):
     KEV_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=10)
     KEV_MAX_RETRY_AFTER_SECONDS: float = Field(default=10.0, ge=0, le=60)
     KEV_FRESHNESS_SECONDS: float = Field(default=36 * 3600, gt=0, le=30 * 86400)
+    EPSS_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=60)
+    EPSS_TOTAL_DEADLINE_SECONDS: float = Field(default=30.0, gt=0, le=300)
+    EPSS_MAX_RESPONSE_BYTES: int = Field(
+        default=256 * 1024, ge=1024, le=2 * 1024 * 1024
+    )
+    EPSS_MAX_CONCURRENCY: int = Field(default=2, ge=1, le=8)
+    EPSS_REQUESTS_PER_WINDOW: int = Field(default=60, ge=1, le=1000)
+    EPSS_RATE_WINDOW_SECONDS: float = Field(default=60.0, gt=0, le=3600)
+    EPSS_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
+    EPSS_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=10)
+    EPSS_MAX_RETRY_AFTER_SECONDS: float = Field(default=10.0, ge=0, le=60)
+    EPSS_CACHE_TTL_SECONDS: float = Field(default=3600.0, gt=0, le=86400)
+    EPSS_CACHE_MAX_ENTRIES: int = Field(default=1024, ge=1, le=10_000)
+    EPSS_CURRENT_MAX_AGE_DAYS: int = Field(default=1, ge=0, le=7)
+    EPSS_STALE_MAX_AGE_DAYS: int = Field(default=7, ge=1, le=30)
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod
@@ -94,6 +109,10 @@ class Settings(BaseSettings):
             )
         if self.ML_DEMO_MODE_ENABLED and not self.ML_INFERENCE_ENABLED:
             raise ValueError("ML_DEMO_MODE_ENABLED requires ML_INFERENCE_ENABLED")
+        if self.EPSS_STALE_MAX_AGE_DAYS <= self.EPSS_CURRENT_MAX_AGE_DAYS:
+            raise ValueError(
+                "EPSS_STALE_MAX_AGE_DAYS must exceed EPSS_CURRENT_MAX_AGE_DAYS"
+            )
         return self
 
 
