@@ -405,3 +405,17 @@ the unified Quality Gate PASS.
 - Final quality gate: 748 tests passed, 93.63% branch coverage, Ruff lint PASS,
   Ruff format PASS, mypy strict PASS, pip check PASS, overall PASS. The exact
   OpenAPI route inventory includes the six new endpoints.
+
+## 2026-10-26 — Phase 05 checkpoint 05.02
+
+- Audited `main` and `origin/main` at `78f583a`: the six requested 05.01 commits
+  are present; runtime metadata remains `0.4.1`; `v0.4.0` remains the newest
+  tag. Preserved the pre-existing untracked `app/attack/__init__.py`.
+- Added strict behavioral event/provenance contracts, semantic batch validation,
+  pre-buffer request limits, deterministic offline generation for ten scenarios,
+  three typed read/write API routes, adversarial tests, and documentation.
+- No behavioral rule, detection verdict, temporal correlation, ATT&CK mapping,
+  persistence, host modification, executable handling, or network I/O was added.
+- Final quality gate: 795 tests passed, 93.89% branch coverage, Ruff lint and
+  format PASS, mypy strict PASS over 109 source files, `pip check` PASS, and
+  unified Quality Gate PASS.

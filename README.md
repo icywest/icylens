@@ -1,5 +1,14 @@
 # iCYLENS
 
+## Phase 05 behavioral telemetry foundation
+
+Checkpoint 05.02 adds strict process, file, network, and configuration event
+contracts; semantic batch validation; and ten deterministic offline educational
+scenarios under `/api/v1/behavior`. Events are not persisted or executed and
+are not automatically mapped to ATT&CK. See
+[`docs/BEHAVIORAL_EVENT_SCHEMA.md`](docs/BEHAVIORAL_EVENT_SCHEMA.md) and
+[`docs/SYNTHETIC_TELEMETRY_GENERATOR.md`](docs/SYNTHETIC_TELEMETRY_GENERATOR.md).
+
 ## Phase 05 ATT&CK knowledge foundation
 
 Checkpoint 05.01 adds a pinned, offline Enterprise ATT&CK 19.2 STIX 2.1

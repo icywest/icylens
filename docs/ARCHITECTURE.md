@@ -523,3 +523,23 @@ official pinned STIX 2.1 -> bounded importer -> structural/domain validation
 
 This component has no dependency on static analysis, synthetic ML, or Phase 04
 vulnerability intelligence and makes no behavioral observation.
+
+## Phase 05 Checkpoint 05.02 behavioral event foundation
+
+Strict discriminated event contracts separate common provenance from process,
+file, network, and configuration fields. A pure batch validator checks
+within-request consistency and returns typed issues without classifying threats.
+The deterministic generator derives a bounded immutable response from explicit
+scenario configuration and performs no I/O.
+
+```text
+typed JSON body -> pre-buffer byte limit -> structural event validation
+  -> semantic batch validation -> typed result (no persistence)
+
+scenario + seed + UTC start -> deterministic generator -> same validator
+  -> synthetic scenario response (no execution, no ATT&CK mapping)
+```
+
+The behavior module has no dependency on the ATT&CK catalog, vulnerability
+intelligence, static analysis, or ML. It creates the evidence vocabulary needed
+by later phases without implementing rules or temporal correlation.

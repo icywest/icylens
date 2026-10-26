@@ -467,3 +467,23 @@ List and lookup routes exclude non-active records unless
 `include_retired=true`. Responses carry domain, release, official identity,
 source STIX identity, lifecycle state, and source references. No route accepts
 a remote URL, selects another release, refreshes data, or represents detection.
+
+## Phase 05 behavioral telemetry API
+
+- `POST /api/v1/behavior/events/validate` accepts one strict `EventBatch` of up
+  to 256 discriminated events and returns `EventValidationResult`. HTTP 422
+  represents structural contract failure; a structurally valid but inconsistent
+  batch returns 200 with typed issues and `valid: false` when errors exist.
+- `POST /api/v1/behavior/scenarios/generate` accepts an explicit scenario ID,
+  scenario kind, seed, platform, UTC start time, and 1–100 bounded events. It
+  returns deterministic `SyntheticScenario` data plus validation results.
+- `GET /api/v1/behavior/schema` publishes supported event types, resource
+  limits, and explicit `persistence: false`, `attack_mapping: false`, and
+  `detection_semantics: false` boundaries.
+
+Validation bodies are capped at 512 KiB and generation requests at 64 KiB
+before JSON buffering. Oversize returns 413, invalid content-length returns 400,
+invalid contracts return 422, and unexpected service failures return sanitized
+500 responses. The endpoints do not accept files or output paths, persist
+events, contact hosts, perform network requests, execute descriptions, map
+ATT&CK techniques, or assert maliciousness.
