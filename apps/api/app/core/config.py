@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 API_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +41,18 @@ class Settings(BaseSettings):
     ML_INFERENCE_ENABLED: bool = False
     ML_DEMO_MODE_ENABLED: bool = False
     ML_MAX_CONCURRENT_INFERENCES: int = Field(default=2, ge=1, le=16)
+    NVD_API_KEY: SecretStr | None = None
+    NVD_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, le=60)
+    NVD_TOTAL_DEADLINE_SECONDS: float = Field(default=45.0, gt=0, le=300)
+    NVD_MAX_RESPONSE_BYTES: int = Field(
+        default=2 * 1024 * 1024, ge=1024, le=16 * 1024 * 1024
+    )
+    NVD_MAX_CONCURRENCY: int = Field(default=2, ge=1, le=8)
+    NVD_REQUESTS_PER_WINDOW: int = Field(default=5, ge=1, le=100)
+    NVD_RATE_WINDOW_SECONDS: float = Field(default=30.0, gt=0, le=3600)
+    NVD_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
+    NVD_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=10)
+    NVD_MAX_RETRY_AFTER_SECONDS: float = Field(default=10.0, ge=0, le=60)
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod

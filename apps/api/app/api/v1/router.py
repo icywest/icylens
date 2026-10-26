@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     ml_inferences,
     static_analyses,
     uploads,
+    vulnerabilities,
 )
 
 api_router = APIRouter()
@@ -19,3 +20,4 @@ api_router.include_router(fingerprints.router)
 api_router.include_router(content_inspections.router)
 api_router.include_router(static_analyses.router)
 api_router.include_router(ml_inferences.router)
+api_router.include_router(vulnerabilities.router)
