@@ -35,6 +35,9 @@ def test_env_example_contains_only_documented_non_secret_settings() -> None:
         "ICYLENS_INSPECTION_MAX_STRINGS",
         "ICYLENS_INSPECTION_MAX_STRING_LENGTH",
         "ICYLENS_INSPECTION_MAX_INDICATORS",
+        "ICYLENS_ML_INFERENCE_ENABLED",
+        "ICYLENS_ML_DEMO_MODE_ENABLED",
+        "ICYLENS_ML_MAX_CONCURRENT_INFERENCES",
     }
 
 
