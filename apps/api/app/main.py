@@ -10,6 +10,7 @@ from app.attack.catalog import (
     ATTACKCatalogStore,
     ATTACKCatalogValidationError,
 )
+from app.behavior.limits import BehaviorBodyLimitMiddleware
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
 from app.integrations.cisa_kev.client import KEVClient, KEVClientError
@@ -135,6 +136,7 @@ def create_app(
     application.state.ml_inference_capacity = InferenceCapacity(
         resolved_settings.ML_MAX_CONCURRENT_INFERENCES
     )
+    application.add_middleware(BehaviorBodyLimitMiddleware)
 
     application.include_router(
         api_router,
