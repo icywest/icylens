@@ -38,6 +38,10 @@ class NVDRateLimitError(NVDClientError):
     pass
 
 
+class NVDLocalRateLimitError(NVDRateLimitError):
+    pass
+
+
 class NVDUnavailableError(NVDClientError):
     pass
 
@@ -177,7 +181,7 @@ class NVDClient:
     async def _request_with_retries(self, cve_id: str) -> httpx.Response:
         for attempt in range(self._maximum_retries + 1):
             if not await self._budget.try_acquire():
-                raise NVDRateLimitError("local NVD request budget is exhausted")
+                raise NVDLocalRateLimitError("local NVD request budget is exhausted")
             try:
                 request = self._http.build_request(
                     "GET", self._endpoint, params={"cveId": cve_id}

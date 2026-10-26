@@ -34,6 +34,10 @@ class EPSSRateLimitError(EPSSClientError):
     pass
 
 
+class EPSSLocalRateLimitError(EPSSRateLimitError):
+    pass
+
+
 class EPSSUnavailableError(EPSSClientError):
     pass
 
@@ -169,7 +173,7 @@ class EPSSClient:
     async def _request_with_retries(self, cve_id: str) -> httpx.Response:
         for attempt in range(self._maximum_retries + 1):
             if not await self._budget.try_acquire():
-                raise EPSSRateLimitError("local EPSS request budget is exhausted")
+                raise EPSSLocalRateLimitError("local EPSS request budget is exhausted")
             try:
                 request = self._http.build_request(
                     "GET", self._endpoint, params={"cve": cve_id}
