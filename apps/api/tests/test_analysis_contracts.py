@@ -315,6 +315,8 @@ def test_openapi_contains_checkpoint_contracts_once(client: TestClient) -> None:
         "/api/v1/behavior/events/validate",
         "/api/v1/behavior/scenarios/generate",
         "/api/v1/behavior/schema",
+        "/api/v1/behavior/rules",
+        "/api/v1/behavior/rules/evaluate",
     }
     assert "AnalysisRequest" in schema["components"]["schemas"]
     assert "HealthResponse" in schema["components"]["schemas"]
