@@ -312,6 +312,9 @@ def test_openapi_contains_checkpoint_contracts_once(client: TestClient) -> None:
         "/api/v1/attack/tactics/{tactic_id}/techniques",
         "/api/v1/attack/techniques/{technique_id}",
         "/api/v1/attack/techniques/{technique_id}/subtechniques",
+        "/api/v1/behavior/events/validate",
+        "/api/v1/behavior/scenarios/generate",
+        "/api/v1/behavior/schema",
     }
     assert "AnalysisRequest" in schema["components"]["schemas"]
     assert "HealthResponse" in schema["components"]["schemas"]
