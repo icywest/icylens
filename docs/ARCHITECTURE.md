@@ -543,3 +543,21 @@ scenario + seed + UTC start -> deterministic generator -> same validator
 The behavior module has no dependency on the ATT&CK catalog, vulnerability
 intelligence, static analysis, or ML. It creates the evidence vocabulary needed
 by later phases without implementing rules or temporal correlation.
+
+## Phase 05 Checkpoint 05.03 deterministic behavioral rules
+
+Validated 05.02 event batches enter a stateless engine backed by a frozen,
+sorted built-in registry. Family-specific trusted evaluators perform bounded
+linear scans, extract capped/redacted evidence, and produce one typed finding
+per rule plus separate outcome counts. Request data can select IDs but cannot
+define or execute rules.
+
+```text
+EventBatch -> 05.02 validation -> immutable registry
+  -> process/file/network/configuration evaluators
+  -> bounded evidence -> explainable findings
+```
+
+The engine does not depend on the ATT&CK catalog, ML, vulnerability sources,
+filesystem, network, or persistence. Temporal reasoning is limited to order in
+one batch; advanced event-sequence correlation remains 05.04 scope.

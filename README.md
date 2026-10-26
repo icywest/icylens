@@ -1,5 +1,14 @@
 # iCYLENS
 
+## Phase 05 deterministic behavioral rules
+
+Checkpoint 05.03 adds a fixed, read-only registry of twelve educational rules
+and bounded evidence-based evaluation at `/api/v1/behavior/rules`. Findings
+explain declared conditions; they are not malware verdicts, confirmed attacks,
+or automatic ATT&CK mappings. See
+[`docs/BEHAVIORAL_RULE_ENGINE.md`](docs/BEHAVIORAL_RULE_ENGINE.md) and
+[`docs/BEHAVIORAL_FINDINGS_CONTRACT.md`](docs/BEHAVIORAL_FINDINGS_CONTRACT.md).
+
 ## Phase 05 behavioral telemetry foundation
 
 Checkpoint 05.02 adds strict process, file, network, and configuration event

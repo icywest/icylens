@@ -487,3 +487,19 @@ invalid contracts return 422, and unexpected service failures return sanitized
 500 responses. The endpoints do not accept files or output paths, persist
 events, contact hosts, perform network requests, execute descriptions, map
 ATT&CK techniques, or assert maliciousness.
+
+## Phase 05 behavioral rule API
+
+- `GET /api/v1/behavior/rules` returns the immutable sorted built-in registry,
+  including conditions, evidence requirements, limitations, versions, families,
+  and enabled state. No write method exists.
+- `POST /api/v1/behavior/rules/evaluate` accepts a strict `EventBatch` and an
+  optional bounded list of registered rule IDs. Omission evaluates every enabled
+  built-in rule. The response contains existing batch validation, deterministic
+  findings, separate state counts, evidence, limitations, and false flags for
+  persistence, malware classification, and ATT&CK mapping.
+
+Malformed, duplicate, or unknown rule IDs return 422. Oversized request bodies
+return 413 before JSON buffering. Evaluation-budget exhaustion returns sanitized
+503 and unexpected failures return sanitized 500. The API accepts no rule
+definitions, expressions, plugins, scripts, severities, or remote endpoints.
