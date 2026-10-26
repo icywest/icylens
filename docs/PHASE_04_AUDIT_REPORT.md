@@ -8,6 +8,8 @@ Decisión original 04.06: **BLOCKED**
 Resultado de remediación 04.06.1: **PASS — apto para reauditoría de aceptación**
 Reauditoría final 2026-10-26: **BLOCKED — P04-SEC-006 abierto**
 Resultado de remediación 04.06.2: **PASS — apto para reauditoría independiente**
+Reauditoría final independiente 2026-10-26: **BLOCKED — P04-SEC-007 abierto**
+Resultado de remediación 04.06.3: **PASS — apto para reauditoría independiente**
 
 ## A. Resumen ejecutivo
 
@@ -655,3 +657,267 @@ P04-SEC-006 queda **FIXED** con fencing por identidad y evidencia adversarial.
 Checkpoint 04.06.2 obtiene **PASS**. Debe realizarse otra reauditoría final
 independiente antes de crear `PHASE_04_ACCEPTANCE.md` o recomendar `v0.4.0`.
 Phase 05 no fue iniciada.
+
+## T. Auditoría final independiente posterior a 04.06.2
+
+Fecha: 2026-10-26 (America/Managua)
+HEAD: `67da4239d738456469358a884b1d0098feb1a770`
+Resultado: **BLOCKED**
+
+### T.1 Git y baseline
+
+La auditoría comenzó con working tree limpio en `main`. `HEAD` y `origin/main`
+coincidían en `67da4239d738456469358a884b1d0098feb1a770`; por tanto, a diferencia de
+reauditorías anteriores, los commits de 04.06.1 y 04.06.2 sí estaban publicados
+en el remoto configurado. Se verificaron los seis commits de código, pruebas y
+documentación:
+
+- `cee74ba`, `6f16738`, `91838a7` para 04.06.1;
+- `e561ea1`, `81c0382`, `67da423` para 04.06.2.
+
+Los únicos tags existentes eran `v0.1.0`, `v0.2.0` y `v0.3.0`. No existía
+`v0.4.0` ni `docs/PHASE_04_ACCEPTANCE.md`.
+
+El Quality Gate ejecutado desde `apps/api` pasó sin reducir umbrales: Ruff lint
+PASS, Ruff format PASS sobre 116 archivos, mypy strict PASS sobre 97 archivos,
+697/697 tests PASS, cobertura statement/branch 93.30%, `pip check` PASS y Quality
+Gate PASS. Una selección adicional de 16 pruebas de concurrencia se ejecutó con
+`PYTHONASYNCIODEBUG=1` y warnings tratados como errores: 16/16 PASS.
+
+### T.2 P04-SEC-001 — resultado independiente
+
+**FIXED.** Cada lookup EPSS registra un consumidor exactamente una vez y lo
+libera en `finally`. `asyncio.shield()` evita que la cancelación de un consumidor
+se propague al fetch compartido mientras existe otro consumidor. El último
+consumidor marca retiro, cancela, elimina por identidad y recolecta el task fuera
+del lock. El cleanup del runner también elimina únicamente su propia operación.
+El shutdown retira, cancela y recolecta antes de cerrar el cliente HTTP.
+
+Un arnés independiente con `asyncio.Event` confirmó:
+
+```text
+un consumidor cancelado: active_waiters=1, provider_cancels=0
+dos consumidores abandonando: provider_cancels=1
+cache=0, inflight=0, pending_tasks=0
+deadline corto + consumidor largo: timeout / score=0.999990000
+provider_cancels=0, pending_tasks=0
+```
+
+El escenario original del deadline del correlador también pasó: el fan-out
+cancela y recolecta sus wrappers, el último waiter retira el fetch EPSS y no
+quedan tasks huérfanos ni capacidad retenida. No se observaron contadores
+negativos, dobles liberaciones ni excepciones no recuperadas.
+
+Límite explícito: la cancelación de asyncio es cooperativa. Si un proveedor
+suprime `CancelledError` indefinidamente, el caller que está recolectando y el
+shutdown pueden esperar indefinidamente; Python no ofrece terminación forzada
+segura del coroutine. El fencing evita que ese coroutine publique, pero no puede
+hacer que se detenga instantáneamente.
+
+### T.3 P04-SEC-006 — resultado independiente
+
+**FIXED.** `_commit_if_authorized` comprueba, bajo el mismo lock usado por el
+registro, que el servicio sigue abierto, la operación continúa registrada, el
+task actual es exactamente el task vigente y no existe retiro solicitado. La
+comprobación, escritura, actualización LRU y eviction son una sola sección
+crítica sin puntos de suspensión internos. El cleanup posterior se mantiene
+condicionado por identidad y no puede borrar al sucesor.
+
+La carrera original fue reproducida sin usar FIRST real:
+
+```text
+successor_score=0.999990000
+cache_before_old_finishes=0.999990000
+cache_after_old_finishes=0.999990000
+old_outcome=CancelledError
+provider_calls=2
+inflight=0
+pending_tasks=0
+```
+
+También se confirmó que una operación retirada sin sucesor no publica, que no se
+usa como fallback si falla el sucesor, y que shutdown impide tanto su late commit
+como nuevos lookups. Errores y cancelaciones no se guardan como evidencia.
+
+### T.4 Auditoría conjunta A–O
+
+| Escenario | Evidencia determinista | Resultado |
+|---|---|---|
+| A. Un consumidor cancelado y otro activo | Dos waiters, cancelación del primero, barrera del proveedor | PASS |
+| B. Último consumidor cancelado sin sucesor | Cancelación observada, cache/registro vacíos | PASS |
+| C. Último cancelado con sucesor inmediato | Dos generaciones y retiro por identidad | PASS |
+| D. Antigua termina durante publicación nueva | High antes y después de liberar old | PASS |
+| E. Antigua suprime `CancelledError` | Proveedor resistente controlado por eventos | PASS |
+| F. Dos consumidores abandonan simultáneamente | Una cancelación de proveedor, cero tasks pendientes | PASS |
+| G. Timeout global durante completion | Timeout del correlador y completion race | PASS |
+| H. Shutdown con operación retirada | Registro retirado, late commit rechazado | PASS |
+| I. Shutdown con operación vigente | Task cancelado/recolectado; nuevo lookup rechazado | PASS |
+| J. Sucesor falla tras retirar antigua | Fallo tipado, cache vacía, antigua no revive | PASS |
+| K. Varias CVEs compiten por capacidad | Semáforo saturado y luego totalmente liberado | PASS |
+| L. TTL/LRU con reemplazo | Expiración, score nuevo y eviction acotada | PASS |
+| M. Misma CVE con deadlines distintos | Corto expira; largo conserva fetch y resultado | PASS |
+| N. CVEs diferentes | Dos identidades y scores sin contaminación | PASS |
+| O. Excepción simultánea a cancelación | Error consumido/propagado, sin cache ni task | PASS |
+
+Los escenarios usan events, barreras y Futures de las pruebas; los sleeps se
+limitan a ceder control al event loop o activar un deadline explícito. No hubo
+stress ni llamadas live contra FIRST.
+
+### T.5 Integridad de cache y lifecycle
+
+Se comprobaron los doce invariantes solicitados. Una operación retirada no
+publica con o sin sucesor; una operación vigente solo recibe un resultado después
+de validación y normalización; una generación antigua no sobrescribe ni elimina
+la entrada posterior; errores y cancelaciones no producen entradas; score cero
+permanece distinto de `None`; `Decimal`, fecha, provenance y recálculo de
+frescura se preservan; las CVEs no se mezclan; LRU mantiene el límite; y `_closed`
+impide publicaciones y lookups nuevos.
+
+La propiedad de tasks está explícita en EPSS y en el fan-out del correlador. Los
+waiters se contabilizan bajo lock, las tareas retiradas no se reutilizan y las
+esperas de `gather` ocurren fuera del lock EPSS. No se observaron tasks huérfanos
+con `asyncio.all_tasks()`.
+
+### T.6 Hallazgo P04-SEC-007 — lock KEV mantenido durante I/O
+
+- **ID:** P04-SEC-007.
+- **Severidad:** Medium; bloqueante por la regla dura de aceptación.
+- **Archivo y línea:** `apps/api/app/intelligence/kev_catalog.py:133-140`.
+- **Evidencia:** `KEVCatalogStore.refresh()` entra en `_refresh_lock` en la línea
+  135 y ejecuta `await client.fetch_catalog()` en la línea 139 sin liberar el
+  lock. La operación incluye red, retries, backoff, espera de semáforo y lectura
+  streaming del catálogo.
+- **Reproducción:** un fetcher bloqueado por `asyncio.Event` dejó
+  `store._refresh_lock.locked() == True`; un segundo refresh permaneció pendiente
+  y no pudo progresar hasta liberar el primer I/O. Después de la barrera ambos
+  recibieron el mismo snapshot y no quedaron tasks pendientes.
+- **Impacto:** head-of-line blocking entre refreshes y acoplamiento de la
+  exclusión de estado a la latencia/fallo del proveedor. El cliente actual posee
+  deadline total, y los lookups leen el snapshot sin tomar este lock, por lo que
+  no se confirmó corrupción, stale write ni indisponibilidad de consultas. Aun
+  así, contradice expresamente el requisito «no locks durante I/O».
+- **Corrección recomendada:** separar el fetch de la sección crítica y usar una
+  operación de refresh explícitamente poseída/coalescida o una generación. Solo
+  la autorización y promoción del candidato validado deben ocurrir bajo el lock;
+  una operación antigua no debe poder reemplazar un snapshot posterior.
+- **Estado:** OPEN.
+- **Test asociado requerido:** barrera que pruebe que el lock de estado está
+  libre durante el fetch, coalescing de refreshes, cancelación del único/todos los
+  consumidores, promoción por generación, refresh fallido y shutdown.
+
+No se confirmó otro stale write o task sin propietario. NVD no crea tasks de
+background; EPSS y correlación recolectan los suyos; no existen callbacks de
+cleanup. La promoción KEV sigue siendo validada, inmutable y ordenada, pero su
+estrategia de exclusión incumple el criterio indicado.
+
+### T.7 Regresión semántica, proveedores y API
+
+La suite completa revalidó contratos CVE/NVD, CVSS 2.0/3.0/3.1/4.0, CWE,
+CPE AND/OR/NOT, lógica trivaluada, rangos de versión, KEV, EPSS y correlación
+unificada. Se conservaron provenance, estados complete/partial/unavailable y
+aplicabilidad opcional. No existe score combinado. EPSS no se presenta como
+prueba de explotación, CPE no confirma vulnerabilidad y el ML sintético continúa
+marcado como demostración no validada.
+
+NVD, CISA KEV y FIRST EPSS mantienen endpoints HTTPS allowlisted, TLS verificado,
+redirects desactivados, `trust_env=False`, retries/deadlines acotados, límites de
+respuesta decodificada, cierre de streams, límites de concurrencia y errores
+sanitizados. La corrección EPSS no debilitó los clientes externos. Health, Static
+Analysis, ML demo, endpoints NVD/CVSS/CWE/CPE/KEV/EPSS, Unified GET/POST, OpenAPI
+y taxonomía de errores pasaron offline.
+
+### T.8 Findings, readiness y release
+
+| Hallazgo | Estado |
+|---|---|
+| P04-SEC-001 — ownership/cancelación EPSS | FIXED |
+| P04-SEC-006 — late cache commit EPSS | FIXED |
+| P04-SEC-007 — lock KEV durante I/O | OPEN — bloqueante |
+
+**Educational Local Readiness:** READY WITH CONDITIONS. Las rutas educativas y
+los contratos funcionan y el gate es reproducible, pero no debe declararse la
+aceptación final de Phase 04 hasta cerrar P04-SEC-007.
+
+**Public Production Readiness:** NOT READY. Además del hallazgo abierto, faltan
+autenticación/autorización, rate limiting distribuido, caches compartidas,
+orquestación externa de refresh KEV y lockfile reproducible. La metadata sigue en
+`0.1.0` tanto en `apps/api/pyproject.toml:7` como en
+`apps/api/app/core/config.py:27`; debe corregirse de forma controlada antes de un
+eventual tag `v0.4.0`.
+
+Decisión final: **BLOCKED**. No se crea `docs/PHASE_04_ACCEPTANCE.md`; no se
+recomienda ni crea `v0.4.0`. El único archivo modificado por esta auditoría es el
+presente informe; no se modificó ni eliminó código funcional. Phase 05 no fue
+iniciada.
+
+## U. Remediación 04.06.3 — lifecycle y lock scope de refresh KEV
+
+Fecha: 2026-10-26 (America/Managua)
+HEAD base: `67da4239d738456469358a884b1d0098feb1a770`
+Resultado del checkpoint: **PASS**
+
+P04-SEC-007 se originaba en `KEVCatalogStore.refresh()`: `_refresh_lock`
+serializaba correctamente la promoción, pero también permanecía adquirido durante
+`client.fetch_catalog()` y `build_snapshot()`. Por tanto cubría HTTP, streaming,
+retries, backoff, parsing y validación, aunque solo las decisiones sobre la
+operación vigente y el snapshot compartido requerían exclusión mutua.
+
+El correctivo adopta ownership explícito por el servicio. El store registra como
+máximo un `_refresh_task`; consumidores concurrentes esperan el mismo task con
+`asyncio.shield()`. Cancelar un consumidor no cancela el refresh compartido. El
+store supervisa el resultado, consume excepciones terminales y `aclose()` retira,
+cancela y recolecta la tarea antes de cerrar el cliente HTTP.
+
+El lock queda limitado a cinco transiciones breves:
+
+1. rechazar refresh después de cierre;
+2. localizar o registrar la operación activa;
+3. comprobar identidad, cierre y cancelación antes de publicar;
+4. validar precedencia contra el snapshot activo y promover atómicamente;
+5. retirar por identidad la operación terminada.
+
+El fetch, streaming, backoff, parsing, `build_snapshot()`, espera de consumidores
+y drain de shutdown ocurren fuera del lock. `lookup()` continúa leyendo el
+snapshot inmutable sin esperar al refresh ni iniciar I/O.
+
+La autorización de commit exige store abierto, task actual idéntico al registrado
+y ausencia de `task.cancelling()`. La comprobación, protección contra digest
+contradictorio/rollback y asignación del snapshot ocurren en la misma sección
+crítica sin `await` interno. Una prueba adversarial descubrió durante el desarrollo
+que una cancelación solicitada inmediatamente después de validar podía no
+suspenderse al adquirir un lock libre; la comprobación explícita de
+`task.cancelling()` cerró esa carrera antes del gate final.
+
+La reproducción independiente del defecto original ahora produce:
+
+```text
+lock_held_during_provider_wait=False
+provider_calls_before_release=1
+second_done_before_release=False
+provider_calls_total=1
+same_snapshot=True
+refresh_task=None
+pending_tasks=0
+```
+
+Nueve pruebas nuevas verifican lock libre durante I/O, dos consumidores/un fetch,
+cancelación de uno y del único consumidor bajo ownership del servicio, fallo
+coalescido, respuesta inválida coalescida, cancelación durante validación,
+shutdown con proveedor resistente a cancelación, shutdown antes de promoción,
+lookup durante refresh, cleanup y cancelación durante backoff. Las pruebas
+existentes siguen cubriendo snapshot inválido, conflicto de digest, rollback,
+freshness, stale positive/negative, never-loaded, límites, transporte y API.
+
+El Quality Gate final pasó con 706/706 pruebas y 93.37% de cobertura combinada;
+Ruff lint/format PASS sobre 116 archivos, mypy strict PASS sobre 97 archivos,
+`pip check` PASS y Quality Gate PASS. El targeted gate KEV pasó con asyncio debug
+y warnings tratados como errores.
+
+P04-SEC-007 queda **FIXED**. Riesgos residuales: el refresh y snapshot continúan
+siendo process-local; el digest prueba integridad de bytes, no autenticidad del
+proveedor; y una coroutine que suprima cancelación indefinidamente puede retrasar
+shutdown aunque ya no conserve autorización para publicar.
+
+Checkpoint 04.06.3 obtiene **PASS** y queda apto para reauditoría final
+independiente. No se crea `PHASE_04_ACCEPTANCE.md`, no se recomienda aún
+`v0.4.0`, y Phase 05 no fue iniciada.
