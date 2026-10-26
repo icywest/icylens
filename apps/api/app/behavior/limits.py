@@ -22,13 +22,16 @@ class BehaviorBodyLimitMiddleware:
         if path.endswith(
             (
                 "/behavior/events/validate",
+                "/behavior/analyze",
                 "/behavior/attack/map",
                 "/behavior/rules/evaluate",
                 "/behavior/sequences/correlate",
             )
         ):
             return MAX_BATCH_BYTES
-        if path.endswith("/behavior/scenarios/generate"):
+        if path.endswith(
+            ("/behavior/scenarios/generate", "/behavior/scenarios/analyze")
+        ):
             return MAX_GENERATION_BODY_BYTES
         return None
 

@@ -13,6 +13,7 @@ from app.schemas.behavior import (
     ConfigurationEvent,
     ConfigurationKind,
     EventUnion,
+    EventValidationResult,
     FileAction,
     FileEvent,
     NetworkAction,
@@ -307,7 +308,12 @@ class BehavioralRuleEngine:
         self._registry = registry
         self._clock = clock
 
-    def evaluate(self, request: RuleEvaluationRequest) -> RuleEvaluationResult:
+    def evaluate(
+        self,
+        request: RuleEvaluationRequest,
+        *,
+        batch_validation: EventValidationResult | None = None,
+    ) -> RuleEvaluationResult:
         rules = self._registry.select(request.rule_ids)
         if len(rules) > MAX_RULES_PER_EVALUATION:
             raise RuleEvaluationLimitError("Rule count exceeds the evaluation limit")
@@ -354,7 +360,7 @@ class BehavioralRuleEngine:
         for finding in findings:
             counts[finding.result] += 1
         result = RuleEvaluationResult(
-            batch_validation=validate_event_batch(request.batch),
+            batch_validation=batch_validation or validate_event_batch(request.batch),
             findings=tuple(findings),
             summary=RuleEvaluationSummary(
                 evaluated_rules=len(findings),

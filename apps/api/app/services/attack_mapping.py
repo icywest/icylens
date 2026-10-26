@@ -31,6 +31,7 @@ from app.schemas.attack_mapping import (
     MAX_MAPPING_OUTPUT_BYTES,
     AttackMappingAssessment,
     AttackMappingPolicy,
+    AttackMappingPolicyIdentifier,
     AttackMappingPolicyRegistryResponse,
     AttackMappingRequest,
     AttackMappingSummary,
@@ -55,6 +56,7 @@ from app.schemas.behavior_correlation import (
 )
 from app.schemas.behavior_rules import (
     RuleEvaluationRequest,
+    RuleEvaluationResult,
     RuleFinding,
     RuleMatchStatus,
 )
@@ -226,8 +228,7 @@ class AttackMappingService:
 
     def evaluate(self, request: AttackMappingRequest) -> AttackMappingAssessment:
         started = self._clock()
-        policies = self._registry.select(request.policy_ids)
-        rule_ids = tuple(sorted({policy.required_rule_id for policy in policies}))
+        rule_ids = self.required_rule_ids(request.policy_ids)
         rule_result = self._rule_engine.evaluate(
             RuleEvaluationRequest(batch=request.batch, rule_ids=rule_ids)
         )
@@ -236,6 +237,30 @@ class AttackMappingService:
                 batch=request.batch, policy=request.correlation_policy
             )
         )
+        return self.evaluate_trusted(
+            request,
+            rule_result,
+            temporal_result,
+            started_at=started,
+        )
+
+    def required_rule_ids(
+        self, policy_ids: tuple[AttackMappingPolicyIdentifier, ...] | None
+    ) -> tuple[str, ...]:
+        policies = self._registry.select(policy_ids)
+        return tuple(sorted({policy.required_rule_id for policy in policies}))
+
+    def evaluate_trusted(
+        self,
+        request: AttackMappingRequest,
+        rule_result: RuleEvaluationResult,
+        temporal_result: TemporalCorrelationResult,
+        *,
+        started_at: float | None = None,
+    ) -> AttackMappingAssessment:
+        """Evaluate only backend-produced evidence within the current request."""
+        started = self._clock() if started_at is None else started_at
+        policies = self._registry.select(request.policy_ids)
         try:
             loaded_snapshot = self._store.snapshot
             self._registry.validate_catalog(loaded_snapshot)

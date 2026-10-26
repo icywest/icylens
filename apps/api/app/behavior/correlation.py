@@ -20,6 +20,7 @@ from app.behavior.correlation_rules import event_delta_seconds, windowed_runs
 from app.behavior.validation import validate_event_batch
 from app.schemas.behavior import (
     EventUnion,
+    EventValidationResult,
     FileEvent,
     NetworkEvent,
     ProcessAction,
@@ -78,7 +79,10 @@ class TemporalCorrelationEngine:
         self._clock = clock
 
     def correlate(
-        self, request: TemporalCorrelationRequest
+        self,
+        request: TemporalCorrelationRequest,
+        *,
+        batch_validation: EventValidationResult | None = None,
     ) -> TemporalCorrelationResult:
         started = self._clock()
         policy = request.policy
@@ -627,7 +631,7 @@ class TemporalCorrelationEngine:
         )
         confidence_counts = Counter(item.confidence for item in relationships)
         result = TemporalCorrelationResult(
-            batch_validation=validate_event_batch(request.batch),
+            batch_validation=batch_validation or validate_event_batch(request.batch),
             policy=policy,
             processing_time=processing_time,
             generated_at=processing_time,
