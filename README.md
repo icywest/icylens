@@ -1,5 +1,15 @@
 # iCYLENS
 
+## Phase 05 ATT&CK knowledge foundation
+
+Checkpoint 05.01 adds a pinned, offline Enterprise ATT&CK 19.2 STIX 2.1
+catalog and read-only `/api/v1/attack` endpoints. It distinguishes tactics,
+techniques, sub-techniques, STIX relationships, lifecycle state, and source
+provenance. Catalog membership is knowledge, never evidence that a behavior
+was observed. See
+[`docs/MITRE_ATTACK_KNOWLEDGE_BASE.md`](docs/MITRE_ATTACK_KNOWLEDGE_BASE.md) and
+[`docs/ATTACK_STIX_DATA_CONTRACTS.md`](docs/ATTACK_STIX_DATA_CONTRACTS.md).
+
 ## Phase 04 vulnerability intelligence
 
 Checkpoint 04.03 adds an independent, read-only CISA KEV snapshot integration.

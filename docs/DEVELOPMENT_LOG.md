@@ -389,3 +389,19 @@ document and implementation handoff.
 Final evidence: 685 tests passed (64 added), 93.28% branch coverage, Ruff
 lint/format PASS, strict mypy PASS over 97 source files, `pip check` PASS, and
 the unified Quality Gate PASS.
+
+# 2026-10-26 — Phase 05 checkpoint 05.01
+
+- Audited clean `main` at `e99e4b6`, equal to `origin/main`; `v0.4.0` is the
+  newest published tag while runtime metadata is `0.4.1` and no `v0.4.1` tag
+  exists. Tags were not changed.
+- Verified the official MITRE index: 19.2 was released 5 August 2026 and 20.0
+  on 13 October 2026. Intentionally fixed checkpoint 05.01 to the requested
+  known candidate 19.2 at immutable tag `v19.2`.
+- Imported the official bytes and verified SHA-256
+  `dc1639caa5501d720e280cf1cbd8fbe009884a0c9b3e6e9ed9d0c25166c3d8f4`.
+- Added the bounded importer, normalized immutable snapshot, knowledge service,
+  GET-only API, synthetic/adversarial tests, and contracts/operations docs.
+- Final quality gate: 748 tests passed, 93.63% branch coverage, Ruff lint PASS,
+  Ruff format PASS, mypy strict PASS, pip check PASS, overall PASS. The exact
+  OpenAPI route inventory includes the six new endpoints.

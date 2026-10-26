@@ -505,3 +505,21 @@ The public response carries bounded NVD summary metadata rather than the full
 provider-derived document, existing interpretation contracts, optional CPE
 assessment, and a structured evidence ledger. No correlation dependency
 points toward ML, and request handling cannot refresh KEV.
+
+## Phase 05 Checkpoint 05.01 ATT&CK knowledge foundation
+
+The fixed official Enterprise ATT&CK 19.2 STIX bundle enters only through a
+bounded manual importer. Structural and identity validation precede domain
+normalization, deterministic compression, and atomic publication. Application
+lifespan loads the packaged immutable snapshot once. `ATTACKKnowledgeService`
+performs indexed, network-free reads and the `/attack` router exposes bounded
+GET contracts. Import failure cannot replace an existing store snapshot, and
+no GET triggers download or refresh.
+
+```text
+official pinned STIX 2.1 -> bounded importer -> structural/domain validation
+  -> immutable compressed snapshot -> knowledge service -> read-only API
+```
+
+This component has no dependency on static analysis, synthetic ML, or Phase 04
+vulnerability intelligence and makes no behavioral observation.

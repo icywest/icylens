@@ -446,3 +446,24 @@ render `completed` as a safety verdict.
 - There is no authentication or authorization.
 - Swagger and ReDoc remain enabled in every environment.
 - The health response does not validate downstream dependencies.
+
+## Phase 05 ATT&CK knowledge API
+
+All routes are GET-only under `/api/v1/attack`. IDs are case-sensitive:
+`TA####` for tactics and `T####` or `T####.###` for techniques. Malformed IDs
+return 422, well-formed absent/hidden retired IDs return 404, and an unavailable
+catalog returns 503. Unexpected lookup failures are sanitized as 500.
+
+- `GET /attack/status` returns availability, fixed provenance, statistics,
+  historical-object policy, and the `knowledge_not_observation` boundary.
+- `GET /attack/tactics` returns a page (`offset`, `limit` up to 200).
+- `GET /attack/tactics/{tactic_id}` returns one tactic.
+- `GET /attack/tactics/{tactic_id}/techniques` returns associated techniques.
+- `GET /attack/techniques/{technique_id}` returns one technique.
+- `GET /attack/techniques/{technique_id}/subtechniques` returns official
+  children of a parent technique.
+
+List and lookup routes exclude non-active records unless
+`include_retired=true`. Responses carry domain, release, official identity,
+source STIX identity, lifecycle state, and source references. No route accepts
+a remote URL, selects another release, refreshes data, or represents detection.
