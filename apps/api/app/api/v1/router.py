@@ -5,6 +5,7 @@ from app.api.v1.routes import (
     content_inspections,
     fingerprints,
     health,
+    kev_intelligence,
     ml_inferences,
     static_analyses,
     uploads,
@@ -14,6 +15,7 @@ from app.api.v1.routes import (
 api_router = APIRouter()
 
 api_router.include_router(health.router)
+api_router.include_router(kev_intelligence.router)
 api_router.include_router(analyses.router)
 api_router.include_router(uploads.router)
 api_router.include_router(fingerprints.router)

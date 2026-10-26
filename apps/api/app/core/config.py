@@ -56,6 +56,18 @@ class Settings(BaseSettings):
     VULNERABILITY_MAX_INVENTORY_BODY_BYTES: int = Field(
         default=256 * 1024, ge=1024, le=2 * 1024 * 1024
     )
+    KEV_REFRESH_ON_STARTUP: bool = False
+    KEV_TIMEOUT_SECONDS: float = Field(default=15.0, gt=0, le=60)
+    KEV_TOTAL_DEADLINE_SECONDS: float = Field(default=60.0, gt=0, le=300)
+    KEV_MAX_RESPONSE_BYTES: int = Field(
+        default=8 * 1024 * 1024, ge=1024 * 1024, le=32 * 1024 * 1024
+    )
+    KEV_MAX_ENTRIES: int = Field(default=5000, ge=1, le=20_000)
+    KEV_MAX_CONCURRENCY: int = Field(default=1, ge=1, le=2)
+    KEV_MAX_RETRIES: int = Field(default=2, ge=0, le=5)
+    KEV_BACKOFF_SECONDS: float = Field(default=0.5, ge=0, le=10)
+    KEV_MAX_RETRY_AFTER_SECONDS: float = Field(default=10.0, ge=0, le=60)
+    KEV_FRESHNESS_SECONDS: float = Field(default=36 * 3600, gt=0, le=30 * 86400)
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod
