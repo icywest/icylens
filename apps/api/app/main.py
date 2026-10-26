@@ -1,13 +1,49 @@
+import logging
+from collections.abc import Callable
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
 from fastapi import FastAPI
 
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging
+from app.ml.demo import initialize_synthetic_demo
+from app.ml.model_runtime import TrustedModelRuntime
+from app.schemas.ml_inference import ActiveModelDescriptor
+from app.services.ml_inference import InferenceCapacity
+
+logger = logging.getLogger("icylens.ml_lifecycle")
+
+ModelInitializer = Callable[[TrustedModelRuntime], ActiveModelDescriptor]
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    model_initializer: ModelInitializer | None = None,
+) -> FastAPI:
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings.LOG_LEVEL)
+    runtime = TrustedModelRuntime()
+    initializer = model_initializer or initialize_synthetic_demo
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if (
+            resolved_settings.ML_INFERENCE_ENABLED
+            and resolved_settings.ML_DEMO_MODE_ENABLED
+        ):
+            try:
+                initializer(runtime)
+            except Exception as exc:
+                runtime.reject()
+                logger.error(
+                    "ML demo initialization failed with exception type %s",
+                    type(exc).__name__,
+                )
+        yield
+        runtime.revoke()
 
     application = FastAPI(
         title=resolved_settings.APP_NAME,
@@ -21,8 +57,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
     application.state.settings = resolved_settings
+    application.state.ml_runtime = runtime
+    application.state.ml_inference_capacity = InferenceCapacity(
+        resolved_settings.ML_MAX_CONCURRENT_INFERENCES
+    )
 
     application.include_router(
         api_router,

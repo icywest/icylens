@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     INSPECTION_MAX_STRINGS: int = Field(default=100, gt=0, le=1000)
     INSPECTION_MAX_STRING_LENGTH: int = Field(default=256, gt=0, le=4096)
     INSPECTION_MAX_INDICATORS: int = Field(default=100, gt=0, le=1000)
+    ML_INFERENCE_ENABLED: bool = False
+    ML_DEMO_MODE_ENABLED: bool = False
+    ML_MAX_CONCURRENT_INFERENCES: int = Field(default=2, ge=1, le=16)
 
     @field_validator("LOG_LEVEL", mode="before")
     @classmethod
@@ -62,6 +65,8 @@ class Settings(BaseSettings):
                 "INSPECTION_MAX_STRING_LENGTH must be greater than or equal to "
                 "INSPECTION_MIN_STRING_LENGTH"
             )
+        if self.ML_DEMO_MODE_ENABLED and not self.ML_INFERENCE_ENABLED:
+            raise ValueError("ML_DEMO_MODE_ENABLED requires ML_INFERENCE_ENABLED")
         return self
 
 

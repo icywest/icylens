@@ -5,6 +5,7 @@ from app.api.v1.routes import (
     content_inspections,
     fingerprints,
     health,
+    ml_inferences,
     static_analyses,
     uploads,
 )
@@ -17,3 +18,4 @@ api_router.include_router(uploads.router)
 api_router.include_router(fingerprints.router)
 api_router.include_router(content_inspections.router)
 api_router.include_router(static_analyses.router)
+api_router.include_router(ml_inferences.router)
