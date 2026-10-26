@@ -8,7 +8,7 @@ from app.core.config import Settings, get_settings
 
 TEST_ENVIRONMENT = {
     "ICYLENS_APP_NAME": "iCYLENS API",
-    "ICYLENS_APP_VERSION": "0.1.0",
+    "ICYLENS_APP_VERSION": "0.4.1",
     "ICYLENS_APP_ENV": "testing",
     "ICYLENS_DEBUG": "false",
     "ICYLENS_API_V1_PREFIX": "/api/v1",

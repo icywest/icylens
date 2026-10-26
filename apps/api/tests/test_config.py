@@ -16,7 +16,7 @@ def test_default_settings_without_env_file() -> None:
     settings = Settings(_env_file=None)
 
     assert settings.APP_NAME == "iCYLENS API"
-    assert settings.APP_VERSION == "0.1.0"
+    assert settings.APP_VERSION == "0.4.1"
     assert settings.APP_ENV == "development"
     assert settings.DEBUG is False
     assert settings.API_V1_PREFIX == "/api/v1"
@@ -172,11 +172,15 @@ def test_fastapi_uses_injected_name_version_prefix_and_debug() -> None:
 
 @pytest.mark.integration
 def test_default_application_preserves_existing_endpoints() -> None:
-    client = TestClient(create_app(Settings(_env_file=None)))
+    application = create_app(Settings(_env_file=None))
+    client = TestClient(application)
 
     assert client.get("/api/v1/health/").status_code == 200
     assert client.get("/docs").status_code == 200
-    assert client.get("/openapi.json").status_code == 200
+    openapi = client.get("/openapi.json")
+    assert openapi.status_code == 200
+    assert application.version == "0.4.1"
+    assert openapi.json()["info"]["version"] == "0.4.1"
     assert (
         client.post(
             "/api/v1/analyses/validate",
@@ -191,7 +195,7 @@ def test_settings_cache_can_be_isolated_between_tests(
 ) -> None:
     controlled_environment = {
         "ICYLENS_APP_NAME": "Initial API",
-        "ICYLENS_APP_VERSION": "0.1.0",
+        "ICYLENS_APP_VERSION": "0.4.1",
         "ICYLENS_APP_ENV": "testing",
         "ICYLENS_DEBUG": "false",
         "ICYLENS_API_V1_PREFIX": "/api/v1",
