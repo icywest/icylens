@@ -4,6 +4,7 @@ from app.api.v1.routes import (
     analyses,
     attack,
     behavior,
+    behavior_analysis,
     behavior_attack,
     behavior_rules,
     behavior_sequences,
@@ -24,6 +25,7 @@ api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(attack.router)
 api_router.include_router(behavior.router)
+api_router.include_router(behavior_analysis.router)
 api_router.include_router(behavior_attack.router)
 api_router.include_router(behavior_rules.router)
 api_router.include_router(behavior_sequences.router)

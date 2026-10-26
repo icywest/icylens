@@ -21,6 +21,7 @@ from app.ml.demo import initialize_synthetic_demo
 from app.ml.model_runtime import TrustedModelRuntime
 from app.schemas.ml_inference import ActiveModelDescriptor
 from app.services.attack_mapping import AttackMappingCapacity
+from app.services.behavior_analysis import BehavioralAnalysisCapacity
 from app.services.epss_intelligence import EPSSIntelligenceService
 from app.services.ml_inference import InferenceCapacity
 from app.services.vulnerability_correlation import VulnerabilityCorrelationService
@@ -138,6 +139,7 @@ def create_app(
         resolved_settings.ML_MAX_CONCURRENT_INFERENCES
     )
     application.state.attack_mapping_capacity = AttackMappingCapacity()
+    application.state.behavior_analysis_capacity = BehavioralAnalysisCapacity()
     application.add_middleware(BehaviorBodyLimitMiddleware)
 
     application.include_router(
