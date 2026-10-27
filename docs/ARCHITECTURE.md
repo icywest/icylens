@@ -727,3 +727,31 @@ does not search combinations. It has no HTTP route, persistence, external I/O,
 dynamic expression, provider, subprocess or model execution. Literal false
 fields prohibit attack/malware/compromise/exploitation/execution conclusions,
 risk/probability generation, causality, temporal sequences and trust promotion.
+
+## Phase 06 checkpoint 06.05 deterministic decision trace
+
+The explainability layer depends one-way on validated 06.01 evidence and the
+existing 06.02 through 06.04 services. One internal orchestration computes
+identity once, passes it into correlation, and passes both exact-batch results
+into sufficiency before constructing traces. Earlier layers do not depend on
+the trace package.
+
+```text
+EvidenceBatch -> identity -> correlation -> sufficiency assessment
+  -> minimized lineage -> direct-dependency DAG -> integrity validation
+  -> complete static explanation
+```
+
+The decision DAG is distinct from the evidence-correlation graph. Its root is
+one assessment; policy, selected evidence, evaluated requirements,
+identity/correlation dependencies, relevant contradictions, categorical
+uncertainty and limitations are explicit nodes. Edges represent only direct
+dependencies actually consumed. Canonical IDs, reference closure, semantic
+node states, exact template coverage, acyclicity, depth, summaries and output
+size are checked by frozen Pydantic contracts.
+
+Requests cannot supply precomputed results or trusted traces. The service has
+no HTTP route, persistence, external I/O, dynamic narrative, LLM, score,
+verdict, detection or response. It preserves the analytical state and cannot
+turn provenance into authentication, correlation into causality or a narrow
+sufficiency result into confirmation of external activity.

@@ -455,3 +455,17 @@ confidence. Missing evidence is not false, unknown claims are unsupported, and
 no result confirms a threat. See
 [`docs/EVIDENCE_SUFFICIENCY_ENGINE.md`](docs/EVIDENCE_SUFFICIENCY_ENGINE.md) and
 [`docs/UNCERTAINTY_AND_CONTRADICTIONS.md`](docs/UNCERTAINTY_AND_CONTRADICTIONS.md).
+
+## Deterministic explainability and decision trace
+
+Phase 06.05 adds an internal trace service over the exact decisions produced by
+06.04. It preserves evidence provenance, policy versions, every requirement,
+relevant conflicts, categorical uncertainty and registered limitations, then
+projects them as a bounded direct-dependency DAG with static explanations.
+Canonical IDs reject omissions, state changes, orphan references, cycles and
+oversized output. A trace documents software dependencies only; it is not
+causal proof, threat confirmation or independent origin authentication. No
+endpoint, persistence, score, LLM or external I/O is added. See
+[`docs/EXPLAINABILITY_AND_DECISION_TRACE.md`](docs/EXPLAINABILITY_AND_DECISION_TRACE.md)
+and
+[`docs/DECISION_TRACE_INTEGRITY_AND_LIMITATIONS.md`](docs/DECISION_TRACE_INTEGRITY_AND_LIMITATIONS.md).
