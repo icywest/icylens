@@ -274,7 +274,7 @@ def test_command_line_evidence_is_bounded_and_content_is_not_returned() -> None:
     assert secret not in serialized
     values = {field.field: field for field in evidence.fields}
     assert values["command_line_present"].value is True
-    assert values["command_line_length"].value == len(secret)
+    assert values["command_line_length"].value == "[REDACTED]"
     assert values["command_line_length"].redacted is True
 
 

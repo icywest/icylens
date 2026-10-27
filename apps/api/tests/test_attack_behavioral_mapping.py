@@ -472,6 +472,7 @@ async def test_capacity_timeout_and_cancellation_release_admission(
     while capacity.active:
         await asyncio.sleep(0)
     assert capacity.active == 0
+    await capacity.aclose()
 
 
 @pytest.mark.security

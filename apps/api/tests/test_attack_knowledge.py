@@ -300,21 +300,21 @@ def test_snapshot_loader_resource_and_schema_failures(tmp_path: Path) -> None:
     path = tmp_path / "snapshot.gz"
     path.write_bytes(b"x" * 11)
     with pytest.raises(ATTACKCatalogValidationError, match="Compressed"):
-        load_snapshot(path, maximum_bytes=10)
+        load_snapshot(path, maximum_compressed_bytes=10)
 
     write_snapshot(path, {"padding": "x" * 200})
     with pytest.raises(ATTACKCatalogValidationError, match="Expanded"):
-        load_snapshot(path, maximum_bytes=100)
+        load_snapshot(path, maximum_bytes=100, expected_artifact_digest=None)
 
     payload = pinned_synthetic_payload()
     payload["schema_version"] = "2.0.0"
     write_snapshot(path, payload)
     with pytest.raises(ATTACKCatalogValidationError, match="schema"):
-        load_snapshot(path)
+        load_snapshot(path, expected_artifact_digest=None)
 
     write_snapshot(path, [])
     with pytest.raises(ATTACKCatalogValidationError, match="schema"):
-        load_snapshot(path)
+        load_snapshot(path, expected_artifact_digest=None)
 
 
 @pytest.mark.unit
@@ -347,7 +347,7 @@ def test_snapshot_loader_integrity_failures(
     path = tmp_path / "snapshot.gz"
     write_snapshot(path, payload)
     with pytest.raises(ATTACKCatalogValidationError, match=message):
-        load_snapshot(path)
+        load_snapshot(path, expected_artifact_digest=None)
     with pytest.raises(ATTACKCatalogValidationError, match="timezone-aware"):
         build_snapshot_from_stix(
             fixture_bytes(), datetime(2026, 1, 1), expected_source_digest=None
@@ -370,7 +370,7 @@ def test_snapshot_loader_rejects_tampered_provenance(tmp_path: Path) -> None:
     path = tmp_path / "snapshot.gz"
     path.write_bytes(gzip.compress(json.dumps(payload).encode(), mtime=0))
     with pytest.raises(ATTACKCatalogValidationError, match="provenance"):
-        load_snapshot(path)
+        load_snapshot(path, expected_artifact_digest=None)
 
 
 @pytest.mark.unit
