@@ -716,6 +716,29 @@ por el gate completo.
 | P05-REL-002 | FIXED | Wheel/sdist/instalación no editable con snapshot verificado |
 | P05-CONC-003 | FIXED | Owner compartido, cuatro slots, drain de lifespan y cero workers finales |
 | P05-PRIV-004 | FIXED | Sustitución real y canaries ausentes de engine/HTTP |
+
+## U. Reauditoría independiente de aceptación
+
+La reauditoría independiente del 2026-10-26 reprodujo los cuatro escenarios
+desde un árbol limpio y versionado. Confirmó como **FIXED** la distribución
+wheel/sdist (P05-REL-002) y la redacción efectiva (P05-PRIV-004), pero reclasificó
+dos correcciones como **PARTIAL**:
+
+- P05-SEC-001: el loader predeterminado verifica correctamente el SHA-256 del
+  artefacto, pero `load_snapshot(..., expected_artifact_digest=None)` aceptó seis
+  snapshots mutados y `ATTACKCatalogStore.publish()` no acredita el artefacto.
+- P05-CONC-003: ownership, timeout y drain normal son correctos, pero cancelar la
+  tarea de `aclose()` dejó `shutdown_complete=False`, el executor sin apagar y un
+  thread vivo hasta una segunda llamada manual.
+
+El Quality Gate continuó verde con **908/908** y **94.50%**, la suite focalizada
+pasó **202/202**, la correctiva **16/16**, y la instalación no editable desde
+wheel cargó ATT&CK 19.2 fuera del checkout. Estos resultados no cierran los dos
+escenarios adversariales restantes.
+
+Veredicto independiente: **BLOCKED**. No se crea `PHASE_05_ACCEPTANCE.md`, no se
+autoriza Phase 06 y no se recomienda publicar/taggear 0.4.1. La evidencia completa
+está en `docs/PHASE_05_INDEPENDENT_REAUDIT.md`.
 | P05-REL-005 | OPEN | Metadata 0.4.1 continúa sin tag; no bloquea el correctivo |
 | P05-REP-006 | OPEN | Continúa sin lockfile; riesgo residual conocido |
 | P05-DEPLOY-007 | LIMITATION | Producción pública continúa no preparada |
@@ -723,3 +746,209 @@ por el gate completo.
 05.07.1 obtiene **PASS** como remediación y puede someter los cuatro findings a
 cierre independiente. Phase 05 aún no obtiene aceptación final hasta esa
 reauditoría. No se recomienda crear tags ni iniciar Phase 06 en este checkpoint.
+
+## V. Checkpoint 05.07.2 — Cierre de P05-SEC-001 y P05-CONC-003
+
+Fecha: 2026-10-26. Base: `b821eb9e2f71967de8fdff0e87351c4a84d0102b`, rama
+`main`. Este apéndice documenta el checkpoint correctivo posterior a la
+reauditoría independiente; no reescribe el veredicto histórico de la sección U.
+
+### V.1 P05-SEC-001 — FIXED
+
+Se eliminó la posibilidad de deshabilitar el pin desde APIs de producción:
+
+- `build_snapshot_from_stix()` ya no acepta `expected_source_digest`; fija
+  siempre `ATTACK_SOURCE_SHA256`.
+- `load_snapshot()` ya no acepta `expected_artifact_digest`; delega en
+  `load_verified_snapshot()`.
+- `VerifiedAttackCatalogSnapshot` verifica el SHA-256 de los bytes comprimidos
+  con `hmac.compare_digest` antes de gzip/JSON, sin digest suministrado por el
+  llamador.
+- `ATTACKCatalogStore.load()` usa exclusivamente el camino verificado.
+- `ATTACKCatalogStore.publish()` exige un `VerifiedAttackCatalogSnapshot`
+  exacto, vuelve a comprobar el pin y solo entonces asigna atómicamente.
+- Los helpers de fixtures (`_build_fixture_snapshot_from_stix`,
+  `_load_fixture_snapshot`) son privados, explícitamente no verificados y no
+  pueden publicarse en el store. El runtime no los usa.
+
+Reproducción final:
+
+```text
+load_snapshot(expected_artifact_digest=None): TypeError
+build_snapshot_from_stix(expected_source_digest=None): TypeError
+load_verified_snapshot(mutated): REJECT (artifact digest)
+load_snapshot(mutated): REJECT (artifact digest)
+publish(unverified fixture): REJECT
+```
+
+La suite nueva cubre cinco mutaciones semánticas, corrupción/truncamiento,
+cambio de un byte, publicación no verificada, subclase falsificada,
+preservación del snapshot previo, carga repetida, recurso empaquetado y
+composición de la aplicación. Resultado aislado: **26 passed**.
+
+### V.2 P05-CONC-003 — FIXED
+
+`SynchronousWorkerManager` ahora crea una única tarea interna de cierre, la
+registra antes de ceder el control y expone `shutdown_complete`. `aclose()`
+espera esa tarea mediante `asyncio.shield`, por lo que cancelar uno, varios o
+todos los waiters no cancela el drain ni deja el executor abierto. La liberación
+de workers es idempotente, las excepciones tardías se consumen, y el cierre
+verifica cero workers/activos antes de marcar `shutdown_complete=True`.
+
+Reproducción final con un worker resistente y tres waiters cancelados:
+
+```text
+after all waiters cancelled: closed=True, shutdown_complete=False,
+  active=1, owned_workers=1, executor_shutdown=False
+after worker release: shutdown_complete=True, active=0,
+  owned_workers=0, executor_shutdown=True
+```
+
+El segundo estado se alcanzó sin una segunda llamada a `aclose()`. La suite
+cubre cierre sin workers, cancelación del primer/segundo/tercer waiter,
+cancelación de todos, cancelación inmediata, cancelación antes del primer paso
+de la corrutina, fallo tardío, worker resistente, cuatro workers y quinto
+rechazo, y manager compartido.
+
+Semántica documentada: cancelar una corrutina antes de su primer paso significa
+que `aclose()` nunca comenzó; no se mutó estado y el llamador puede reintentar.
+Un thread Python no puede terminarse por la fuerza; el cierre espera su
+finalización real.
+
+### V.3 Evidencia de regresión, distribución y gate
+
+- Suite focalizada Phase 05 con `PYTHONASYNCIODEBUG=1` y warnings como errores:
+  **228 passed**.
+- Suites de ataque/seguridad afectadas: **84 passed** (42 + 16 + 26).
+- Quality Gate completo: **934/934 passed**, cobertura **94.51%**, Ruff, formato,
+  mypy strict y `pip check` en PASS.
+- `git diff --check`: sin errores (solo avisos CRLF del checkout Windows).
+- OpenAPI smoke: 200, 33 paths; rutas de análisis y ATT&CK presentes.
+- Build desde copia preparada del working tree: wheel **1,726,161 bytes** y sdist
+  **1,771,175 bytes**. Ambos contienen el snapshot de 1,541,193 bytes con SHA-256
+  `916eabb1...a0bc88`; el sdist incluye la suite nueva.
+- Instalación no editable en un target temporal fuera del checkout: `app` se
+  importó desde el target, versión `0.4.1`, ATT&CK 19.2 offline con conteos
+  26,086/15/858/493/21,262 y `T1059` activo. `pip check` PASS.
+
+P05-REL-002 y P05-PRIV-004 conservan su estado **FIXED**; no se modificaron
+reglas, policies, límites, contratos científicos ni rutas públicas.
+
+### V.4 Registro actualizado
+
+| Finding | Estado 05.07.2 | Evidencia |
+|---|---|---|
+| P05-SEC-001 | **FIXED** | Sin parámetro de digest deshabilitable; artifact pin no bypassable; publish solo verificado |
+| P05-CONC-003 | **FIXED** | Cierre interno compartido con shield; executor cerrado y `shutdown_complete=True` tras liberar worker |
+| P05-REL-002 | **FIXED** | Wheel/sdist con snapshot verificado e instalación offline |
+| P05-PRIV-004 | **FIXED** | Sin regresión; gate completo y canaries previos vigentes |
+
+### V.5 Decisión
+
+Checkpoint 05.07.2: **PASS como remediación**. Los dos hallazgos residuales
+quedan corregidos y cubiertos por pruebas adversariales. No se crea
+`PHASE_05_ACCEPTANCE.md`, no se crea tag y no se autoriza Phase 06. La aceptación
+final de Phase 05 queda pendiente de una reauditoría independiente sobre un
+commit limpio que incluya estos cambios.
+
+Riesgos residuales sin cambios: `v0.4.1` no existe como tag (P05-REL-005), no hay
+lockfile reproducible (P05-REP-006) y producciA3n pA�blica sigue fuera de alcance
+(P05-DEPLOY-007).
+
+## W. Final Independent Reaudit - 2026-10-26 - BLOCKED
+
+This section records the independent acceptance reaudit of the uncommitted
+checkpoint 05.07.2 tree. The detailed reproduction is in
+`docs/PHASE_05_INDEPENDENT_REAUDIT.md` section R.
+
+Final result: **BLOCKED**.
+
+| Finding | Final decision |
+|---|---|
+| P05-SEC-001 | **PARTIAL** - byte-level tampering and stale digest parameters are rejected, but `ATTACKCatalogStore.publish()` accepts a `VerifiedAttackCatalogSnapshot` whose `_snapshot` was replaced after construction. |
+| P05-REL-002 | **FIXED for produced artifacts** - wheel/sdist contain the pinned snapshot and the isolated install loads ATT&CK 19.2 offline; no clean release commit exists. |
+| P05-CONC-003 | **FIXED for worker ownership** - cancelled waiters and lifespan cancellation drain the worker; `shutdown_complete=True`. Non-worker lifespan cleanup remains a separate low-severity observation. |
+| P05-PRIV-004 | **FIXED** - canaries absent from rule, unified-analysis and mapping responses, status and logs. |
+
+Reproduction of the residual P05-SEC-001 bypass:
+
+```text
+post-set verified.snapshot T1059: TAMPERED AFTER VERIFICATION
+publish(mutated _snapshot): ACCEPTED -> TAMPERED AFTER VERIFICATION
+```
+
+`publish()` rechecks `_artifact` but does not derive or revalidate `_snapshot`
+from it. No HTTP route accepts the verified object, so this is an in-process
+integrity bypass, not a remote request path.
+
+Independent evidence:
+
+- Full Quality Gate: 934 passed, 94.51% coverage, Ruff, format, mypy strict and
+  `pip check` PASS.
+- New checkpoint suite: 26 passed with `PYTHONASYNCIODEBUG=1` and warnings as
+  errors; it does not cover the `_snapshot` mutation.
+- Wheel: 1,726,161 bytes; sdist: 1,771,175 bytes; both contain the 1,541,193-byte
+  snapshot with SHA-256 `916eabb1...a0bc88`.
+- Isolated wheel install outside the checkout: version 0.4.1, ATT&CK 19.2 with
+  858 techniques, 15 tactics, 21,262 relationships and active T1059.
+- Privacy canaries absent from `/behavior/rules/evaluate`,
+  `/behavior/analyze`, `/behavior/attack/map`, `/attack/status`, serialized
+  results and captured logs.
+- OpenAPI: 200, 33 paths.
+
+No `PHASE_05_ACCEPTANCE.md`, tag, commit, push, branch or release was created.
+Phase 06 is **NOT AUTHORIZED**. Educational/local readiness is **READY WITH
+CONDITIONS**; public production readiness is **NOT READY**.
+
+Required correction before another acceptance audit: make the verified snapshot
+effectively immutable or make `publish()` derive/revalidate the snapshot from the
+pinned artifact, add a regression for post-verification mutation, commit the
+checkpoint, and repeat the independent audit.
+
+## X. Post-Audit Correction - 2026-10-26
+
+This section records the remediation that followed section W. Sections A-W remain
+the historical audit record; this is not a new independent acceptance decision.
+
+P05-SEC-001 was corrected in `apps/api/app/attack/catalog.py`:
+
+- `VerifiedAttackCatalogSnapshot` blocks normal attribute assignment/deletion.
+- `validated_snapshot()` re-verifies the artifact pin and reparses the artifact
+  bytes, ignoring the cached `_snapshot`.
+- `ATTACKCatalogStore.publish()` installs the freshly derived snapshot under
+  `_snapshot_lock`; it never publishes the caller-visible cached object.
+- `ATTACKCatalogStore.load()` uses the same verified publication path.
+- Failed publication leaves the previous valid catalog unchanged.
+
+The checkpoint suite grew from 26 to **29 passed** with three regressions:
+post-verification mutation, synthetic cached snapshot replacement, and failed
+republish preservation. Two existing identity assertions were changed to
+content equality because publication now intentionally installs a fresh
+artifact-derived object; no threshold was reduced.
+
+Verification evidence:
+
+- Focused Phase 05 suite: **231 passed** with `PYTHONASYNCIODEBUG=1` and warnings
+  as errors.
+- Full Quality Gate: **937 passed**, coverage **94.49%**, Ruff, Ruff format,
+  mypy strict and `pip check` PASS.
+- Wheel: **1,726,481** bytes, SHA-256
+  `81e729aa7420cbb002b1c01749dc2be9d004e058d9f758230a712fbceb4f3525`.
+- Sdist: **1,772,448** bytes, SHA-256
+  `10e502865c8c24c1bd4842b1fcda281111b33313860835867f4fa76e744170d8`.
+- Both archives contain the corrected `catalog.py` and the **1,541,193**-byte
+  snapshot with SHA-256 `916eabb166a794e881f23be2fe9bf5590bdba5117db892fc405af636eaa0bc88`.
+- Isolated non-editable install outside the checkout: version `0.4.1`, ATT&CK
+  19.2 with 858 techniques, 15 tactics and 21,262 relationships; the published
+  `T1059` remained official after cached mutation, and a tampered artifact was
+  rejected.
+
+P05-CONC-008 was reviewed but not expanded into this correction. A cancelled
+lifespan exit still drains the worker manager while skipping later non-worker
+`aclose()` calls in a process that continues. This remains a low-severity
+lifecycle residual to decide separately before any production claim.
+
+P05-SEC-001 is ready for independent closure, but Phase 05 final acceptance
+remains **BLOCKED** pending a fresh independent audit on a clean commit. No
+`PHASE_05_ACCEPTANCE.md`, tag, commit, push, branch or release was created.
+Phase 06 remains **NOT AUTHORIZED**.
