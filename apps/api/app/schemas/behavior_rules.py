@@ -16,6 +16,7 @@ MAX_EVIDENCE_FIELDS = 12
 MAX_EVIDENCE_VALUE_LENGTH = 256
 MAX_RULE_OUTPUT_BYTES = 256 * 1024
 RULE_EVALUATION_DEADLINE_SECONDS = 1.0
+REDACTED_EVIDENCE_VALUE = "[REDACTED]"
 
 RuleIdentifier = Annotated[
     str, Field(pattern=r"^BR-(?:PROC|FILE|NET|CONF)-[0-9]{3}$", max_length=16)
@@ -78,6 +79,14 @@ class EvidenceField(StrictContract):
     field: Annotated[str, Field(min_length=1, max_length=128)]
     value: EvidenceScalar
     redacted: bool = False
+
+    @model_validator(mode="after")
+    def enforce_redaction_semantics(self) -> Self:
+        if self.redacted and self.value != REDACTED_EVIDENCE_VALUE:
+            raise ValueError("redacted evidence must replace the original value")
+        if not self.redacted and self.value == REDACTED_EVIDENCE_VALUE:
+            raise ValueError("the redaction marker requires redacted=true")
+        return self
 
 
 class RuleEvidence(StrictContract):

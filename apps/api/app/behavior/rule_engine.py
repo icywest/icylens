@@ -27,6 +27,7 @@ from app.schemas.behavior_rules import (
     MAX_FINDINGS_PER_EVALUATION,
     MAX_RULE_OUTPUT_BYTES,
     MAX_RULES_PER_EVALUATION,
+    REDACTED_EVIDENCE_VALUE,
     RULE_EVALUATION_DEADLINE_SECONDS,
     BehavioralRule,
     EvidenceField,
@@ -60,16 +61,26 @@ def _connection_key(event: NetworkEvent) -> tuple[object, ...]:
 def _field(
     name: str, value: str | int | bool | None, *, sensitive: bool = False
 ) -> EvidenceField:
+    if sensitive and value is not None:
+        return EvidenceField(
+            field=name,
+            value=REDACTED_EVIDENCE_VALUE,
+            redacted=True,
+        )
     if isinstance(value, str) and len(value) > 256:
-        return EvidenceField(field=name, value=value[:256], redacted=True)
-    return EvidenceField(field=name, value=value, redacted=sensitive)
+        return EvidenceField(
+            field=name,
+            value=REDACTED_EVIDENCE_VALUE,
+            redacted=True,
+        )
+    return EvidenceField(field=name, value=value, redacted=False)
 
 
 def _evidence(event: BehavioralEvent) -> RuleEvidence:
     fields = [
         _field("event_type", event.event_type),
         _field("timestamp", event.timestamp.isoformat()),
-        _field("host_id", event.host_id),
+        _field("host_id", event.host_id, sensitive=True),
     ]
     if isinstance(event, ProcessEvent):
         fields.extend(
@@ -112,8 +123,16 @@ def _evidence(event: BehavioralEvent) -> RuleEvidence:
         fields.extend(
             (
                 _field("action", event.action.value),
-                _field("local_endpoint", f"{event.local_ip}:{event.local_port}"),
-                _field("remote_endpoint", f"{event.remote_ip}:{event.remote_port}"),
+                _field(
+                    "local_endpoint",
+                    f"{event.local_ip}:{event.local_port}",
+                    sensitive=True,
+                ),
+                _field(
+                    "remote_endpoint",
+                    f"{event.remote_ip}:{event.remote_port}",
+                    sensitive=True,
+                ),
                 _field("protocol", event.protocol.value),
                 _field("process_present", event.process is not None),
             )
@@ -130,7 +149,7 @@ def _evidence(event: BehavioralEvent) -> RuleEvidence:
         )
     return RuleEvidence(
         event_id=event.event_id,
-        source_id=event.source.source_id,
+        source_id=REDACTED_EVIDENCE_VALUE,
         nature=event.provenance.nature,
         fields=tuple(fields),
     )
