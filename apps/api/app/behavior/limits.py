@@ -4,6 +4,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.schemas.behavior import MAX_BATCH_BYTES, MAX_GENERATION_BODY_BYTES
+from app.schemas.multilayer_analysis import MAX_MULTILAYER_REQUEST_BYTES
 
 
 class _BodyTooLarge(Exception):
@@ -33,6 +34,8 @@ class BehaviorBodyLimitMiddleware:
             ("/behavior/scenarios/generate", "/behavior/scenarios/analyze")
         ):
             return MAX_GENERATION_BODY_BYTES
+        if path.endswith("/multilayer/analyze"):
+            return MAX_MULTILAYER_REQUEST_BYTES
         return None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:

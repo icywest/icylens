@@ -13,10 +13,16 @@ from app.explainability.lineage import (
     uncertainty_lineage,
 )
 from app.identity.resolution import resolve_identities
-from app.schemas.correlation import MultilayerCorrelationRequest
+from app.schemas.correlation import (
+    MultilayerCorrelationRequest,
+    MultilayerCorrelationResult,
+)
 from app.schemas.explainability import DecisionTraceRequest, DecisionTraceResult
-from app.schemas.identity import IdentityResolutionRequest
-from app.schemas.sufficiency import SufficiencyAssessmentRequest
+from app.schemas.identity import IdentityResolutionRequest, IdentityResolutionResult
+from app.schemas.sufficiency import (
+    SufficiencyAssessmentRequest,
+    SufficiencyAssessmentResult,
+)
 from app.sufficiency.rules import DEFAULT_SUFFICIENCY_POLICY_REGISTRY
 from app.sufficiency.service import assess_evidence_sufficiency_with_context
 
@@ -34,6 +40,25 @@ def explain_decisions(request: DecisionTraceRequest) -> DecisionTraceResult:
         identity,
         correlation,
     )
+    return explain_decisions_with_context(request, identity, correlation, sufficiency)
+
+
+def explain_decisions_with_context(
+    request: DecisionTraceRequest,
+    identity: IdentityResolutionResult,
+    correlation: MultilayerCorrelationResult,
+    sufficiency: SufficiencyAssessmentResult,
+) -> DecisionTraceResult:
+    """Build traces from backend-owned results bound to the exact request batch."""
+    if not (
+        request.batch.batch_id
+        == identity.batch_id
+        == correlation.batch_id
+        == sufficiency.batch_id
+    ):
+        raise ValueError(
+            "explainability prerequisites must correspond to the exact evidence batch"
+        )
     assessment_by_key = {
         (item.assertion_id, item.evidence_ids): item for item in sufficiency.assessments
     }

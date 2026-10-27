@@ -146,6 +146,7 @@ def create_app(
     application.state.phase05_worker_manager = phase05_workers
     application.state.attack_mapping_capacity = phase05_workers
     application.state.behavior_analysis_capacity = phase05_workers
+    application.state.multilayer_analysis_capacity = phase05_workers
     application.add_middleware(BehaviorBodyLimitMiddleware)
 
     application.include_router(

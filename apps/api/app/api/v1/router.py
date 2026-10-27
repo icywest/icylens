@@ -14,6 +14,7 @@ from app.api.v1.routes import (
     health,
     kev_intelligence,
     ml_inferences,
+    multilayer_analysis,
     static_analyses,
     unified_vulnerabilities,
     uploads,
@@ -39,3 +40,4 @@ api_router.include_router(content_inspections.router)
 api_router.include_router(static_analyses.router)
 api_router.include_router(ml_inferences.router)
 api_router.include_router(vulnerabilities.router)
+api_router.include_router(multilayer_analysis.router)
