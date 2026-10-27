@@ -420,3 +420,15 @@ sensitive values. They perform no cross-module matching or correlation and are
 not exposed as a client trust-ingestion endpoint. See
 [`docs/UNIFIED_EVIDENCE_MODEL.md`](docs/UNIFIED_EVIDENCE_MODEL.md) and
 [`docs/EVIDENCE_PROVENANCE_AND_TRUST.md`](docs/EVIDENCE_PROVENANCE_AND_TRUST.md).
+
+## Cross-module identity resolution
+
+Phase 06.02 adds an internal deterministic resolver for exact SHA-256, CVE and
+source-scoped analysis identities, plus explicit context compatibility. It
+uses a fixed rule registry, preserves provenance, reports conflicts and missing
+attributes, and never groups compatible context transitively. Process, ATT&CK
+and versioned-model identities remain unresolved where the 06.01 evidence
+contract lacks required attributes. See
+[`docs/CROSS_MODULE_IDENTITY_RESOLUTION.md`](docs/CROSS_MODULE_IDENTITY_RESOLUTION.md)
+and
+[`docs/IDENTITY_CONTEXT_AND_LIMITATIONS.md`](docs/IDENTITY_CONTEXT_AND_LIMITATIONS.md).

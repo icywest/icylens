@@ -661,3 +661,21 @@ timestamp meaning from every other meaning. Canonical SHA-256 IDs are verified
 on model construction. Fixed typed observations avoid arbitrary nested data;
 tuples and frozen nested contracts provide effective immutability. No evidence
 HTTP ingestion route, storage layer or inferred cross-module edge exists.
+
+## Phase 06 checkpoint 06.02 identity and context resolution
+
+The identity layer depends only on validated 06.01 evidence. A fixed registry
+declares supported namespaces, required attributes, context constraints,
+conflicts, explanation templates and limitations. The resolver extracts
+privacy-minimized claims, indexes exact canonical keys and builds groups only
+from `same_identity` results.
+
+Explicit derivation references produce `compatible_context` and cannot create
+groups or transitive equivalence. Domain pairs without a supported rule are
+reported once as `not_comparable`, avoiding all-record Cartesian comparison.
+Conflicted source-analysis claims remain visible and are excluded from groups.
+
+The implementation is Python-only and has no API, persistence, filesystem,
+network, subprocess, ML, LLM, embedding or dynamic-expression dependency. Its
+output explicitly denies threat correlation, attack findings, risk scoring,
+exploitation inference and ML promotion.

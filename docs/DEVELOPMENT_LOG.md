@@ -504,3 +504,18 @@ the unified Quality Gate PASS.
 - Final quality gate: 960 tests passed, 94.55% branch coverage, Ruff lint and
   format PASS over 163 files, strict mypy PASS over 135 source files,
   `pip check` PASS, `git diff --check` PASS, and unified Quality Gate PASS.
+
+## 2026-10-27 — Phase 06 checkpoint 06.02
+
+- Verified clean `main` at `43e5670`, equal to `origin/main`, with all four
+  06.01 commits integrated, metadata `0.5.0` and annotated `v0.5.0` intact.
+- Added strict versioned identity, context, match, conflict, group, request,
+  result and summary contracts with content-verified deterministic IDs.
+- Added an immutable eight-rule registry and indexed resolver for exact SHA-256,
+  CVE and source-scoped analysis identity plus explicit context compatibility.
+- Missing process/host, ATT&CK tuple and independent model-version attributes
+  remain unresolved. No threat correlation, score, finding, exploitation
+  inference, persistence, endpoint or dynamic execution was added.
+- Final quality gate: 985 tests passed, 94.59% branch coverage, Ruff lint and
+  format PASS over 168 files, strict mypy PASS over 139 source files,
+  `pip check` PASS, `git diff --check` PASS and unified Quality Gate PASS.
