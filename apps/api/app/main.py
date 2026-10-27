@@ -19,11 +19,11 @@ from app.integrations.nvd.client import NVDClient
 from app.intelligence.kev_catalog import KEVCatalogStore, KEVCatalogValidationError
 from app.ml.demo import initialize_synthetic_demo
 from app.ml.model_runtime import TrustedModelRuntime
+from app.schemas.behavior_analysis import UNIFIED_ANALYSIS_MAX_CONCURRENCY
 from app.schemas.ml_inference import ActiveModelDescriptor
-from app.services.attack_mapping import AttackMappingCapacity
-from app.services.behavior_analysis import BehavioralAnalysisCapacity
 from app.services.epss_intelligence import EPSSIntelligenceService
 from app.services.ml_inference import InferenceCapacity
+from app.services.synchronous_workers import SynchronousWorkerManager
 from app.services.vulnerability_correlation import VulnerabilityCorrelationService
 from app.services.vulnerability_intelligence import VulnerabilityIntelligenceService
 
@@ -57,6 +57,10 @@ def create_app(
     create_kev_store = kev_store_factory or KEVCatalogStore
     create_epss_client = epss_client_factory or EPSSClient
     create_attack_store = attack_store_factory or ATTACKCatalogStore
+    phase05_workers = SynchronousWorkerManager(
+        UNIFIED_ANALYSIS_MAX_CONCURRENCY,
+        thread_name_prefix="icylens-phase05",
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -112,6 +116,7 @@ def create_app(
                     )
             yield
         finally:
+            await phase05_workers.aclose()
             await kev_store.aclose()
             await epss_service.aclose()
             await epss_client.aclose()
@@ -138,8 +143,9 @@ def create_app(
     application.state.ml_inference_capacity = InferenceCapacity(
         resolved_settings.ML_MAX_CONCURRENT_INFERENCES
     )
-    application.state.attack_mapping_capacity = AttackMappingCapacity()
-    application.state.behavior_analysis_capacity = BehavioralAnalysisCapacity()
+    application.state.phase05_worker_manager = phase05_workers
+    application.state.attack_mapping_capacity = phase05_workers
+    application.state.behavior_analysis_capacity = phase05_workers
     application.add_middleware(BehaviorBodyLimitMiddleware)
 
     application.include_router(

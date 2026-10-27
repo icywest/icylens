@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import time
 from collections import Counter
@@ -60,6 +59,7 @@ from app.schemas.behavior_rules import (
     RuleFinding,
     RuleMatchStatus,
 )
+from app.services.synchronous_workers import SynchronousWorkerManager
 
 Clock: TypeAlias = Callable[[], float]
 
@@ -72,30 +72,9 @@ class AttackMappingCapacityError(RuntimeError):
     pass
 
 
-class AttackMappingCapacity:
+class AttackMappingCapacity(SynchronousWorkerManager):
     def __init__(self, maximum: int = MAPPING_MAX_CONCURRENCY) -> None:
-        if maximum < 1:
-            raise ValueError("mapping capacity must be positive")
-        self.maximum = maximum
-        self._active = 0
-        self._lock = asyncio.Lock()
-
-    @property
-    def active(self) -> int:
-        return self._active
-
-    async def try_acquire(self) -> bool:
-        async with self._lock:
-            if self._active >= self.maximum:
-                return False
-            self._active += 1
-            return True
-
-    async def release(self) -> None:
-        async with self._lock:
-            if self._active <= 0:
-                raise RuntimeError("mapping capacity release is unbalanced")
-            self._active -= 1
+        super().__init__(maximum, thread_name_prefix="icylens-phase05-mapping")
 
 
 def _family_events(
@@ -429,37 +408,12 @@ class AttackMappingService:
 async def evaluate_attack_mapping(
     service: AttackMappingService,
     request: AttackMappingRequest,
-    capacity: AttackMappingCapacity,
+    capacity: SynchronousWorkerManager,
 ) -> AttackMappingAssessment:
-    if not await capacity.try_acquire():
+    worker = capacity.try_submit(lambda: service.evaluate(request))
+    if worker is None:
         raise AttackMappingCapacityError("ATT&CK mapping capacity is exhausted")
-    worker = asyncio.create_task(asyncio.to_thread(service.evaluate, request))
-    deferred_release = False
-
-    async def release_after_worker() -> None:
-        try:
-            await worker
-        except BaseException:
-            pass
-        finally:
-            await capacity.release()
-
     try:
-        try:
-            return await asyncio.wait_for(
-                asyncio.shield(worker),
-                timeout=MAPPING_OPERATION_TIMEOUT_SECONDS,
-            )
-        except TimeoutError as error:
-            deferred_release = True
-            asyncio.create_task(release_after_worker())
-            raise AttackMappingLimitError(
-                "ATT&CK mapping operation timed out"
-            ) from error
-        except asyncio.CancelledError:
-            deferred_release = True
-            asyncio.create_task(release_after_worker())
-            raise
-    finally:
-        if not deferred_release:
-            await capacity.release()
+        return await capacity.wait(worker, timeout=MAPPING_OPERATION_TIMEOUT_SECONDS)
+    except TimeoutError as error:
+        raise AttackMappingLimitError("ATT&CK mapping operation timed out") from error

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import time
 from collections import Counter
@@ -48,6 +47,7 @@ from app.schemas.behavior_analysis import (
 from app.schemas.behavior_correlation import TemporalCorrelationRequest
 from app.schemas.behavior_rules import RuleEvaluationRequest, RuleFinding
 from app.services.attack_mapping import AttackMappingService
+from app.services.synchronous_workers import SynchronousWorkerManager
 
 Clock: TypeAlias = Callable[[], float]
 _ANALYSIS_NAMESPACE = uuid5(
@@ -63,30 +63,9 @@ class BehavioralAnalysisCapacityError(RuntimeError):
     pass
 
 
-class BehavioralAnalysisCapacity:
+class BehavioralAnalysisCapacity(SynchronousWorkerManager):
     def __init__(self, maximum: int = UNIFIED_ANALYSIS_MAX_CONCURRENCY) -> None:
-        if maximum < 1:
-            raise ValueError("analysis capacity must be positive")
-        self.maximum = maximum
-        self._active = 0
-        self._lock = asyncio.Lock()
-
-    @property
-    def active(self) -> int:
-        return self._active
-
-    async def try_acquire(self) -> bool:
-        async with self._lock:
-            if self._active >= self.maximum:
-                return False
-            self._active += 1
-            return True
-
-    async def release(self) -> None:
-        async with self._lock:
-            if self._active <= 0:
-                raise RuntimeError("analysis capacity release is unbalanced")
-            self._active -= 1
+        super().__init__(maximum, thread_name_prefix="icylens-phase05")
 
 
 def _analysis_id(
@@ -566,40 +545,20 @@ class BehavioralAnalysisService:
 
 async def execute_behavioral_analysis(
     operation: Callable[[], BehavioralAnalysisResult],
-    capacity: BehavioralAnalysisCapacity,
+    capacity: SynchronousWorkerManager,
 ) -> BehavioralAnalysisResult:
-    if not await capacity.try_acquire():
+    worker = capacity.try_submit(operation)
+    if worker is None:
         raise BehavioralAnalysisCapacityError("Behavioral analysis capacity exhausted")
-    worker = asyncio.create_task(asyncio.to_thread(operation))
-    deferred_release = False
-
-    async def release_after_worker() -> None:
-        try:
-            await worker
-        except BaseException:
-            pass
-        finally:
-            await capacity.release()
-
     try:
-        try:
-            return await asyncio.wait_for(
-                asyncio.shield(worker),
-                timeout=UNIFIED_ANALYSIS_OPERATION_TIMEOUT_SECONDS,
-            )
-        except TimeoutError as error:
-            deferred_release = True
-            asyncio.create_task(release_after_worker())
-            raise BehavioralAnalysisLimitError(
-                "Unified behavioral analysis operation timed out"
-            ) from error
-        except asyncio.CancelledError:
-            deferred_release = True
-            asyncio.create_task(release_after_worker())
-            raise
-    finally:
-        if not deferred_release:
-            await capacity.release()
+        return await capacity.wait(
+            worker,
+            timeout=UNIFIED_ANALYSIS_OPERATION_TIMEOUT_SECONDS,
+        )
+    except TimeoutError as error:
+        raise BehavioralAnalysisLimitError(
+            "Unified behavioral analysis operation timed out"
+        ) from error
 
 
 def analysis_limits() -> dict[str, int]:

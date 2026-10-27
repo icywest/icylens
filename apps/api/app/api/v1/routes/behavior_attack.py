@@ -15,12 +15,12 @@ from app.schemas.attack_mapping import (
     AttackMappingRequest,
 )
 from app.services.attack_mapping import (
-    AttackMappingCapacity,
     AttackMappingCapacityError,
     AttackMappingLimitError,
     AttackMappingService,
     evaluate_attack_mapping,
 )
+from app.services.synchronous_workers import SynchronousWorkerManager
 
 logger = logging.getLogger("icylens.behavior_attack_mapping")
 router = APIRouter(prefix="/behavior/attack", tags=["Behavioral ATT&CK Mapping"])
@@ -63,7 +63,7 @@ async def map_behavioral_evidence(
     request: Request, payload: AttackMappingRequest
 ) -> AttackMappingAssessment:
     store: ATTACKCatalogStore = request.app.state.attack_store
-    capacity: AttackMappingCapacity = request.app.state.attack_mapping_capacity
+    capacity: SynchronousWorkerManager = request.app.state.attack_mapping_capacity
     service = AttackMappingService(store)
     try:
         return await evaluate_attack_mapping(service, payload, capacity)

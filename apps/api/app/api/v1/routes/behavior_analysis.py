@@ -26,12 +26,12 @@ from app.schemas.behavior_analysis import (
 )
 from app.services.attack_mapping import AttackMappingLimitError
 from app.services.behavior_analysis import (
-    BehavioralAnalysisCapacity,
     BehavioralAnalysisCapacityError,
     BehavioralAnalysisLimitError,
     BehavioralAnalysisService,
     execute_behavioral_analysis,
 )
+from app.services.synchronous_workers import SynchronousWorkerManager
 
 logger = logging.getLogger("icylens.behavior_analysis")
 router = APIRouter(prefix="/behavior", tags=["Unified Behavioral Analysis"])
@@ -46,7 +46,7 @@ async def _execute(
     request: Request,
     operation: Callable[[], BehavioralAnalysisResult],
 ) -> BehavioralAnalysisResult:
-    capacity: BehavioralAnalysisCapacity = request.app.state.behavior_analysis_capacity
+    capacity: SynchronousWorkerManager = request.app.state.behavior_analysis_capacity
     try:
         return await execute_behavioral_analysis(operation, capacity)
     except (UnknownRuleError, UnknownMappingPolicyError) as error:
