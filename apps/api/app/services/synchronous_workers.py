@@ -21,7 +21,7 @@ class SynchronousWorkerManager:
         self._closed = False
         self._shutdown_complete = False
         self._state_lock = Lock()
-        self._close_lock = asyncio.Lock()
+        self._close_task: asyncio.Task[None] | None = None
         self._executor = ThreadPoolExecutor(
             max_workers=maximum,
             thread_name_prefix=thread_name_prefix,
@@ -43,6 +43,11 @@ class SynchronousWorkerManager:
     def owned_workers(self) -> int:
         with self._state_lock:
             return len(self._workers)
+
+    @property
+    def shutdown_complete(self) -> bool:
+        with self._state_lock:
+            return self._shutdown_complete
 
     async def try_acquire(self) -> bool:
         """Compatibility reservation used by direct capacity tests."""
@@ -75,18 +80,21 @@ class SynchronousWorkerManager:
         worker.add_done_callback(self._worker_completed)
         return future
 
+    def _release_worker(self, future: Future[object]) -> None:
+        with self._state_lock:
+            if future in self._workers:
+                self._workers.remove(future)
+                if self._active <= 0:
+                    raise RuntimeError("worker capacity release is unbalanced")
+                self._active -= 1
+
     def _worker_completed(self, future: Future[object]) -> None:
         try:
             future.exception()
         except FutureCancelledError:
             pass
         finally:
-            with self._state_lock:
-                if future in self._workers:
-                    self._workers.remove(future)
-                    if self._active <= 0:
-                        raise RuntimeError("worker capacity release is unbalanced")
-                    self._active -= 1
+            self._release_worker(future)
 
     async def wait(self, future: Future[T], *, timeout: float) -> T:
         """Wait without transferring cancellation to the owned worker future."""
@@ -103,24 +111,46 @@ class SynchronousWorkerManager:
         tracked.add_done_callback(consume_and_remove)
         return await asyncio.wait_for(asyncio.shield(waiter), timeout=timeout)
 
-    async def aclose(self) -> None:
-        """Stop admission and drain every owned worker; safe to call repeatedly."""
-        async with self._close_lock:
-            with self._state_lock:
-                if self._shutdown_complete:
-                    return
+    @staticmethod
+    def _consume_close_exception(task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            return
+        task.exception()
+
+    def _start_close(self) -> asyncio.Task[None]:
+        with self._state_lock:
+            if self._close_task is None:
                 self._closed = True
-                workers = tuple(self._workers)
-
-            if workers:
-                drains = tuple(asyncio.wrap_future(worker) for worker in workers)
-                await asyncio.gather(
-                    *(asyncio.shield(drain) for drain in drains),
-                    return_exceptions=True,
+                task = asyncio.get_running_loop().create_task(
+                    self._close_impl(),
+                    name="icylens-worker-manager-close",
                 )
+                self._close_task = task
+                task.add_done_callback(self._consume_close_exception)
+            return self._close_task
 
-            self._executor.shutdown(wait=True, cancel_futures=False)
-            with self._state_lock:
-                if self._workers or self._active:
-                    raise RuntimeError("worker manager closed before complete drain")
-                self._shutdown_complete = True
+    async def _close_impl(self) -> None:
+        with self._state_lock:
+            workers = tuple(self._workers)
+
+        if workers:
+            drains = tuple(asyncio.wrap_future(worker) for worker in workers)
+            await asyncio.gather(*drains, return_exceptions=True)
+            for worker in workers:
+                self._release_worker(worker)
+
+        self._executor.shutdown(wait=True, cancel_futures=False)
+        with self._state_lock:
+            if self._workers or self._active:
+                raise RuntimeError("worker manager closed before complete drain")
+            self._shutdown_complete = True
+
+    async def aclose(self) -> None:
+        """Stop admission and drain every owned worker; safe to call repeatedly.
+
+        A single internal close task owns the real shutdown. Callers await it
+        through ``asyncio.shield`` so cancelling one or all waiters cannot cancel
+        the shared drain or leave the executor open.
+        """
+        task = self._start_close()
+        await asyncio.shield(task)
