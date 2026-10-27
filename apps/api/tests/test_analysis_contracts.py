@@ -273,7 +273,7 @@ def test_health_contract_is_stable(client: TestClient) -> None:
     assert response.json() == {
         "status": "healthy",
         "service": "iCYLENS API",
-        "version": "0.4.1",
+        "version": "0.5.0",
         "message": "iCYLENS backend is operational",
     }
 

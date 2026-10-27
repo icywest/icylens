@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str = Field(default="iCYLENS API", min_length=1)
-    APP_VERSION: str = Field(default="0.4.1", min_length=1)
+    APP_VERSION: str = Field(default="0.5.0", min_length=1)
     APP_ENV: AppEnvironment = "development"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
