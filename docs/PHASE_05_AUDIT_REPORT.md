@@ -952,3 +952,61 @@ P05-SEC-001 is ready for independent closure, but Phase 05 final acceptance
 remains **BLOCKED** pending a fresh independent audit on a clean commit. No
 `PHASE_05_ACCEPTANCE.md`, tag, commit, push, branch or release was created.
 Phase 06 remains **NOT AUTHORIZED**.
+
+## Y. Final Clean-Commit Acceptance - 2026-10-26
+
+Sections W and X remain the historical audit record. This section supersedes
+their final status. The clean-commit acceptance is recorded in
+`docs/PHASE_05_ACCEPTANCE.md`.
+
+Accepted commit: `fd922310db1c723588ff66f95d08a4d0df7fc9d1` on `main`.
+`origin/main` was at the same commit with divergence `0/0`; the tracked working
+tree was clean before this acceptance record. The corrective sequence is
+`9174436`, `ce1892a`, `2021519`, and `fd92231`. No `v0.4.1` tag exists; the latest
+tag is `v0.4.0`.
+
+Canonical wheel and sdist artifacts were built only from a clean
+`git -c core.autocrlf=false archive` of `HEAD:apps/api`. The archived bytes for
+`catalog.py`, `synchronous_workers.py`, `pyproject.toml`, and the pinned snapshot
+matched `git show HEAD`.
+
+| Artifact | Size | SHA-256 |
+|---|---:|---|
+| Wheel | 1,726,420 bytes | `DF2B7241456B657A3F0EF5B88E447162622040FCE5727D5BE31221FF4D5BC681` |
+| Sdist | 1,768,561 bytes | `3D2FE5BAEE1B06FC2B0A3F8129F890372F5BA19709E56040EFFC8882347DA885` |
+
+Both archives contain the corrected `catalog.py` (SHA-256
+`1de36702df5b66c367e88a837fa0d0220674bb86de65839e8f28df18ad411f15`), corrected
+`synchronous_workers.py` (SHA-256
+`22eba2a44725cc703713beeda91f06ffab66bc7c2d610043c020da711de45546`), and the
+1,541,193-byte snapshot with SHA-256
+`916eabb166a794e881f23be2fe9bf5590bdba5117db892fc405af636eaa0bc88`. The sdist
+includes the Phase 05 tests; the wheel excludes them.
+
+The canonical wheel was installed non-editably outside the checkout. The imported
+application resolved to that target and reported version `0.4.1`, ATT&CK `19.2`,
+858 techniques, 15 tactics, 21,262 relationships, active `T1059`, OpenAPI HTTP
+`200` with 33 paths, and no ATT&CK download. P05-SEC-001 cached-mutation and
+tampered-artifact reproductions passed. P05-CONC-003 timeout, cancellation, final
+`active=0`/`owned=0`, `shutdown_complete=True`, and idempotent close checks passed.
+P05-PRIV-004 canaries were absent from the rule-evaluation, analysis, mapping,
+status, serialized-result, and log checks.
+
+The official Quality Gate passed: **937 passed**, branch coverage **94.49%**
+(threshold unchanged), Ruff lint, Ruff format, mypy strict, and `pip check` PASS.
+
+P05-CONC-008 remains **not fixed**. A cancelled lifespan exit still drains the
+worker manager while skipping later non-worker `aclose()` calls in a continuing
+process:
+
+```text
+manager complete True
+resource closes after cancelled lifespan []
+resource closes after explicit cleanup ['kev_store', 'epss_service', 'kev_client', 'nvd_client']
+```
+
+This is accepted as a Low residual only for Educational Local Readiness.
+Public Production Readiness remains **NOT READY**. The accepted decision is
+**Educational Local Readiness READY WITH CONDITIONS**; preparation of `v0.5.0`
+is recommended. No tag, commit, push, branch, or release was created, and Phase 06
+was not started.
