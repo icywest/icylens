@@ -42,7 +42,7 @@ the validated boundary rather than inferred provenance.
 
 ## System overview
 
-iCYLENS `0.4.1` provides a Python 3.12/3.13 backend foundation, a bounded
+iCYLENS `0.5.0` provides a Python 3.12/3.13 backend foundation, a bounded
 static-analysis pipeline, educational ML demo inference, and read-only
 vulnerability intelligence backed by NVD, CISA KEV, and FIRST EPSS. FastAPI
 exposes versioned HTTP routes, Pydantic defines request and response contracts,

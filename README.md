@@ -142,7 +142,7 @@ All external variables use the `ICYLENS_` prefix:
 | Variable | Default | Purpose |
 |---|---|---|
 | `ICYLENS_APP_NAME` | `iCYLENS API` | Application and health-service name |
-| `ICYLENS_APP_VERSION` | `0.4.1` | API and health-service version |
+| `ICYLENS_APP_VERSION` | `0.5.0` | API and health-service version |
 | `ICYLENS_APP_ENV` | `development` | `development`, `testing`, or `production` |
 | `ICYLENS_DEBUG` | `false` | FastAPI debug mode; forbidden in production |
 | `ICYLENS_API_V1_PREFIX` | `/api/v1` | Prefix for v1 routes |
