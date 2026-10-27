@@ -593,3 +593,34 @@ schema versions and mismatched model types fail with controlled normalization
 errors. A descriptor is available as a Python function for internal consumers;
 there is no `/correlate`, `/investigations`, `/threat-score`, `/detections` or
 client-accreditation route.
+
+## Phase 06 unified multilayer analysis API
+
+`POST /api/v1/multilayer/analyze` accepts
+`MultilayerAnalysisRequest/1.0.0`. The strict JSON body contains one to 16
+discriminated declared sources and one to 32 registered assertion selections.
+Enabled source modes are `declared_static`, `declared_vulnerability` and
+`declared_ml`. The only response mode is `explainable`.
+
+Every admitted observation becomes origin-unverified, client-declared
+evidence. The route rejects internal evidence batches, engine responses,
+identity/correlation results, sufficiency assessments, traces, trust flags,
+dynamic rules and executable instructions. Unknown syntactically valid
+assertions retain the 06.04 `unsupported_assertion` state.
+
+HTTP 200 returns `MultilayerAnalysisResponse/1.0.0`: canonical analysis/batch
+IDs, evidence provenance summaries, identity and correlation reference IDs,
+sufficiency assessment summaries, complete decision traces, static limitations
+and false capability flags. Cross-result references and the 1 MiB response
+limit are validated.
+
+Bodies over 256 KiB return 413 before validation. Redacted 422 covers schema
+and admission failures; 429 covers queue-free worker exhaustion; 503 covers
+resource limits; 504 covers the four-second wait deadline; unexpected or
+inconsistent results return redacted 500. Timeout and cancellation do not free
+worker occupancy before real completion.
+
+`GET /api/v1/multilayer/schema` publishes only safe modes, registered assertion
+IDs, supported domains, limits, response contract and scientific limitations.
+The two routes increase the surface from 33 to 35 operations without changing
+legacy route contracts.

@@ -755,3 +755,28 @@ no HTTP route, persistence, external I/O, dynamic narrative, LLM, score,
 verdict, detection or response. It preserves the analytical state and cannot
 turn provenance into authentication, correlation into causality or a narrow
 sufficiency result into confirmation of external activity.
+
+## Phase 06 checkpoint 06.06 unified multilayer HTTP boundary
+
+The HTTP layer introduces a one-way admission boundary in front of the
+existing Phase 06 services. It accepts no internal result contract. Three
+strict discriminated declaration modes produce origin-unverified,
+client-declared evidence records before the standard pipeline begins.
+
+```text
+HTTP JSON -> bounded receive -> strict declared source admission
+  -> EvidenceBatch -> identity -> correlation -> sufficiency
+  -> trace construction from the same results -> response consistency checks
+```
+
+The synchronous chain runs in the existing four-slot, queue-free,
+lifecycle-owned worker manager. The event loop only waits on a shielded worker
+future. Timeout or cancellation abandons the waiter but not worker ownership;
+shutdown prevents admission and drains real completion. This preserves the
+P05-CONC-003 remediation and leaves P05-CONC-008 unchanged.
+
+The response contains minimized source/evidence mappings, existing summaries,
+published prerequisite IDs and complete traces. Validators require reference
+closure and assessment/trace equality. The API adds no reverse dependency,
+provider access, model execution, persistence, scoring, threat verdict,
+causality or automatic action.

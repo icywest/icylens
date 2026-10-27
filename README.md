@@ -469,3 +469,18 @@ endpoint, persistence, score, LLM or external I/O is added. See
 [`docs/EXPLAINABILITY_AND_DECISION_TRACE.md`](docs/EXPLAINABILITY_AND_DECISION_TRACE.md)
 and
 [`docs/DECISION_TRACE_INTEGRITY_AND_LIMITATIONS.md`](docs/DECISION_TRACE_INTEGRITY_AND_LIMITATIONS.md).
+
+## Unified multilayer analysis API
+
+Phase 06.06 exposes the existing evidence, identity, correlation, sufficiency
+and trace chain at `POST /api/v1/multilayer/analyze`, with a safe descriptor at
+`GET /api/v1/multilayer/schema`. Inputs are limited to declared SHA-256, CVE and
+educational ML observations; the backend always assigns client-declared,
+origin-unverified provenance and accepts no internal batch or precomputed
+result. A queue-free lifecycle worker computes every stage once, retains
+capacity through timeout/cancellation and returns cross-checked minimized
+summaries plus complete decision traces. No provider lookup, model execution,
+score, verdict, persistence or response action is added. See
+[`docs/UNIFIED_MULTILAYER_ANALYSIS_API.md`](docs/UNIFIED_MULTILAYER_ANALYSIS_API.md)
+and
+[`docs/MULTILAYER_HTTP_TRUST_BOUNDARIES.md`](docs/MULTILAYER_HTTP_TRUST_BOUNDARIES.md).
