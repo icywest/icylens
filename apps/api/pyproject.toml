@@ -29,6 +29,10 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["app*"]
+namespaces = false
+
+[tool.setuptools.package-data]
+"app.attack.data" = ["*.json.gz"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
