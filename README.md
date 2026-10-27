@@ -432,3 +432,15 @@ contract lacks required attributes. See
 [`docs/CROSS_MODULE_IDENTITY_RESOLUTION.md`](docs/CROSS_MODULE_IDENTITY_RESOLUTION.md)
 and
 [`docs/IDENTITY_CONTEXT_AND_LIMITATIONS.md`](docs/IDENTITY_CONTEXT_AND_LIMITATIONS.md).
+
+## Deterministic multilayer correlation
+
+Phase 06.03 adds a bounded internal engine over 06.01 evidence and recomputed
+06.02 identity resolution. It supports only exact shared content, CVE and
+source-scoped analysis identity plus validated explicit evidence references.
+Compatible context remains non-positive and non-transitive; retained conflicts
+suppress edges. The engine emits no score, verdict, causality, time sequence,
+trust promotion or persistence and exposes no endpoint. See
+[`docs/MULTILAYER_CORRELATION_ENGINE.md`](docs/MULTILAYER_CORRELATION_ENGINE.md)
+and
+[`docs/CORRELATION_RULES_AND_LIMITATIONS.md`](docs/CORRELATION_RULES_AND_LIMITATIONS.md).

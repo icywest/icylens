@@ -679,3 +679,27 @@ The implementation is Python-only and has no API, persistence, filesystem,
 network, subprocess, ML, LLM, embedding or dynamic-expression dependency. Its
 output explicitly denies threat correlation, attack findings, risk scoring,
 exploitation inference and ML promotion.
+
+## Phase 06 checkpoint 06.03 deterministic multilayer correlation
+
+The internal correlation boundary composes an immutable evidence batch with a
+fresh 06.02 identity resolution. Contracts, static rules, indexed candidate
+selection, categorical evaluation, evidence resolution, graph projection and
+orchestration are separate modules. Earlier layers do not depend back on it.
+
+```text
+EvidenceBatch -> trusted 06.02 resolver -> groups/matches/conflicts
+  -> bounded candidates -> fixed 06.03 rules -> categorical evaluations
+  -> supported relationships only -> existing-evidence graph
+```
+
+Identity groups create one candidate rather than all member pairs. A supported
+group projects to a deterministic star of direct edges; this is bounded
+representation, not transitive inference. Explicit references are consumed
+only after 06.01 verifies closure and acyclicity. Compatible context and
+unsupported diagnostic matches produce evaluations but never edges.
+
+The layer has no endpoint, persistence, provider, filesystem, network,
+subprocess, ML/LLM or dynamic-expression dependency. It cannot generate
+causality, temporal sequences, verdicts, risk/confidence scores, ATT&CK
+findings, exploitation claims, automatic actions or trust promotion.
