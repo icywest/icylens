@@ -7,6 +7,8 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from importlib.resources import files
+from io import BytesIO
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, cast
@@ -32,9 +34,15 @@ ATTACK_SOURCE_URL = (
 ATTACK_SOURCE_SHA256 = (
     "dc1639caa5501d720e280cf1cbd8fbe009884a0c9b3e6e9ed9d0c25166c3d8f4"
 )
+ATTACK_ARTIFACT_SHA256 = (
+    "916eabb166a794e881f23be2fe9bf5590bdba5117db892fc405af636eaa0bc88"
+)
+ATTACK_SNAPSHOT_RESOURCE_PACKAGE = "app.attack.data"
+ATTACK_SNAPSHOT_RESOURCE = "enterprise-attack-19.2.json.gz"
 DEFAULT_SNAPSHOT_PATH = (
     Path(__file__).resolve().parent / "data" / "enterprise-attack-19.2.json.gz"
 )
+_MAX_COMPRESSED_SNAPSHOT_BYTES = 2 * 1024 * 1024
 _STIX_ID = re.compile(
     r"^[a-z][a-z0-9-]*--[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
@@ -412,15 +420,39 @@ def serialize_snapshot(snapshot: ATTACKCatalogSnapshot) -> bytes:
 
 
 def load_snapshot(
-    path: Path = DEFAULT_SNAPSHOT_PATH, *, maximum_bytes: int = 16 * 1024 * 1024
+    path: Path | None = None,
+    *,
+    maximum_bytes: int = 16 * 1024 * 1024,
+    maximum_compressed_bytes: int = _MAX_COMPRESSED_SNAPSHOT_BYTES,
+    expected_artifact_digest: str | None = ATTACK_ARTIFACT_SHA256,
 ) -> ATTACKCatalogSnapshot:
     try:
-        if path.stat().st_size > maximum_bytes:
+        stream = (
+            path.open("rb")
+            if path is not None
+            else files(ATTACK_SNAPSHOT_RESOURCE_PACKAGE)
+            .joinpath(ATTACK_SNAPSHOT_RESOURCE)
+            .open("rb")
+        )
+        with stream:
+            artifact = stream.read(maximum_compressed_bytes + 1)
+        if len(artifact) > maximum_compressed_bytes:
             raise ATTACKCatalogValidationError("Compressed snapshot exceeds byte limit")
-        with gzip.open(path, "rb") as stream:
-            data = stream.read(maximum_bytes + 1)
-    except (OSError, gzip.BadGzipFile) as error:
+    except OSError as error:
         raise ATTACKCatalogValidationError("Snapshot cannot be read") from error
+    artifact_digest = hashlib.sha256(artifact).hexdigest()
+    if (
+        expected_artifact_digest is not None
+        and artifact_digest != expected_artifact_digest
+    ):
+        raise ATTACKCatalogValidationError(
+            "Snapshot artifact digest does not match the pin"
+        )
+    try:
+        with gzip.GzipFile(fileobj=BytesIO(artifact), mode="rb") as gzip_stream:
+            data = gzip_stream.read(maximum_bytes + 1)
+    except (OSError, EOFError, gzip.BadGzipFile) as error:
+        raise ATTACKCatalogValidationError("Snapshot cannot be decompressed") from error
     if len(data) > maximum_bytes:
         raise ATTACKCatalogValidationError("Expanded snapshot exceeds byte limit")
     try:
@@ -480,7 +512,7 @@ def load_snapshot(
 
 
 class ATTACKCatalogStore:
-    def __init__(self, path: Path = DEFAULT_SNAPSHOT_PATH) -> None:
+    def __init__(self, path: Path | None = None) -> None:
         self._snapshot: ATTACKCatalogSnapshot | None = None
         self._path = path
 
