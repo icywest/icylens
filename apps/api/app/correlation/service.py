@@ -18,7 +18,7 @@ from app.schemas.correlation import (
     MultilayerCorrelationResult,
     correlation_content_id,
 )
-from app.schemas.identity import IdentityResolutionRequest
+from app.schemas.identity import IdentityResolutionRequest, IdentityResolutionResult
 
 
 def correlate_evidence(
@@ -27,6 +27,18 @@ def correlate_evidence(
     registry: CorrelationRuleRegistry = DEFAULT_CORRELATION_RULE_REGISTRY,
 ) -> MultilayerCorrelationResult:
     identity = resolve_identities(IdentityResolutionRequest(batch=request.batch))
+    return correlate_evidence_with_identity(request, identity, registry=registry)
+
+
+def correlate_evidence_with_identity(
+    request: MultilayerCorrelationRequest,
+    identity: IdentityResolutionResult,
+    *,
+    registry: CorrelationRuleRegistry = DEFAULT_CORRELATION_RULE_REGISTRY,
+) -> MultilayerCorrelationResult:
+    """Compose a backend-produced identity result after exact batch binding."""
+    if identity.batch_id != request.batch.batch_id:
+        raise ValueError("identity result must correspond to the exact evidence batch")
     selection = select_candidates(request.batch, identity)
     evaluations = evaluate_candidates(
         selection.candidates, request.batch, identity, registry

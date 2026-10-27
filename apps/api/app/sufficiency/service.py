@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from app.correlation.service import correlate_evidence
+from app.correlation.service import correlate_evidence_with_identity
 from app.identity.resolution import resolve_identities
-from app.schemas.correlation import MultilayerCorrelationRequest
-from app.schemas.identity import IdentityResolutionRequest
+from app.schemas.correlation import (
+    MultilayerCorrelationRequest,
+    MultilayerCorrelationResult,
+)
+from app.schemas.identity import IdentityResolutionRequest, IdentityResolutionResult
 from app.schemas.sufficiency import (
     SufficiencyAssessmentRequest,
     SufficiencyAssessmentResult,
@@ -24,7 +27,22 @@ def assess_evidence_sufficiency(
     registry: SufficiencyPolicyRegistry = DEFAULT_SUFFICIENCY_POLICY_REGISTRY,
 ) -> SufficiencyAssessmentResult:
     identity = resolve_identities(IdentityResolutionRequest(batch=request.batch))
-    correlation = correlate_evidence(MultilayerCorrelationRequest(batch=request.batch))
+    correlation = correlate_evidence_with_identity(
+        MultilayerCorrelationRequest(batch=request.batch), identity
+    )
+    return assess_evidence_sufficiency_with_context(
+        request, identity, correlation, registry=registry
+    )
+
+
+def assess_evidence_sufficiency_with_context(
+    request: SufficiencyAssessmentRequest,
+    identity: IdentityResolutionResult,
+    correlation: MultilayerCorrelationResult,
+    *,
+    registry: SufficiencyPolicyRegistry = DEFAULT_SUFFICIENCY_POLICY_REGISTRY,
+) -> SufficiencyAssessmentResult:
+    """Compose backend-produced prerequisite results after exact batch binding."""
     context = build_assessment_context(request.batch, identity, correlation)
     assessments = tuple(
         sorted(
