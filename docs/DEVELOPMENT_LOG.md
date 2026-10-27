@@ -536,3 +536,19 @@ the unified Quality Gate PASS.
 - Final quality gate: 1,034 tests passed (49 added), 94.81% branch coverage,
   Ruff lint/format PASS over 177 files, strict mypy PASS over 147 source files,
   `pip check` PASS, `git diff --check` PASS and unified Quality Gate PASS.
+
+## 2026-10-27 — Phase 06 checkpoint 06.04
+
+- Verified clean `main` at `b973fa0`, equal to `origin/main`, with all four
+  06.03 commits integrated, metadata `0.5.0` and annotated `v0.5.0` intact.
+- Added strict frozen assertion, requirement, support, gap, contradiction,
+  uncertainty, assessment and result contracts with deterministic IDs.
+- Added a static four-policy registry and internal engine that recomputes 06.02
+  and 06.03, resolves evidence through indices and distinguishes relevant from
+  irrelevant conflicts without trust precedence.
+- Added 52 focused tests and sufficiency, uncertainty and acceptance docs. No
+  endpoint, persistence, external effect, dynamic policy, score, probability,
+  threat inference, trust promotion or 06.05 implementation was introduced.
+- Final quality gate: 1,086 tests passed (52 added), 94.96% branch coverage,
+  Ruff lint/format PASS over 186 files, strict mypy PASS over 155 source files,
+  `pip check` PASS, `git diff --check` PASS and unified Quality Gate PASS.

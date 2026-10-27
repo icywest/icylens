@@ -703,3 +703,27 @@ The layer has no endpoint, persistence, provider, filesystem, network,
 subprocess, ML/LLM or dynamic-expression dependency. It cannot generate
 causality, temporal sequences, verdicts, risk/confidence scores, ATT&CK
 findings, exploitation claims, automatic actions or trust promotion.
+
+## Phase 06 checkpoint 06.04 evidence sufficiency
+
+The sufficiency layer depends one-way on validated 06.01 evidence and trusted
+recomputation of the 06.02/06.03 services. Requests contain only assertion and
+evidence IDs; they cannot inject internal results or executable policies.
+
+```text
+EvidenceBatch -> 06.02 + 06.03 recomputation -> static assertion policy
+  -> indexed evidence/relationship resolution -> independent requirements
+  -> relevant contradictions + categorical uncertainty -> assessment
+```
+
+Four policies cover exact content, CVE and source-scoped analysis identity plus
+validated explicit-reference existence. Requirement, contradiction and
+uncertainty components remain separate. A conflict blocks only a selected
+assertion whose required property it affects; an unrelated batch conflict does
+not become a global veto. Unsupported assertions receive no substitute policy.
+
+The implementation uses bounded dictionary, group and relationship lookups and
+does not search combinations. It has no HTTP route, persistence, external I/O,
+dynamic expression, provider, subprocess or model execution. Literal false
+fields prohibit attack/malware/compromise/exploitation/execution conclusions,
+risk/probability generation, causality, temporal sequences and trust promotion.

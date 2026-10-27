@@ -444,3 +444,14 @@ trust promotion or persistence and exposes no endpoint. See
 [`docs/MULTILAYER_CORRELATION_ENGINE.md`](docs/MULTILAYER_CORRELATION_ENGINE.md)
 and
 [`docs/CORRELATION_RULES_AND_LIMITATIONS.md`](docs/CORRELATION_RULES_AND_LIMITATIONS.md).
+
+## Evidence sufficiency and uncertainty
+
+Phase 06.04 adds a bounded internal evaluator for four registered statements
+about existing evidence relationships. It recomputes 06.02 and 06.03 from the
+validated batch, evaluates independent explicit requirements, scopes conflicts
+to the active assertion and records categorical uncertainty without numerical
+confidence. Missing evidence is not false, unknown claims are unsupported, and
+no result confirms a threat. See
+[`docs/EVIDENCE_SUFFICIENCY_ENGINE.md`](docs/EVIDENCE_SUFFICIENCY_ENGINE.md) and
+[`docs/UNCERTAINTY_AND_CONTRADICTIONS.md`](docs/UNCERTAINTY_AND_CONTRADICTIONS.md).
