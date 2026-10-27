@@ -409,3 +409,14 @@ the existing CPE tree against a bounded declared inventory. Source failures are
 isolated and no combined score or compromise conclusion is produced. See
 [`docs/UNIFIED_VULNERABILITY_INTELLIGENCE.md`](docs/UNIFIED_VULNERABILITY_INTELLIGENCE.md)
 and [`docs/EVIDENCE_CORRELATION_POLICY.md`](docs/EVIDENCE_CORRELATION_POLICY.md).
+
+## Unified evidence foundation
+
+Phase 06.01 adds internal, immutable evidence records and deterministic batches
+for the existing static, synthetic-ML, vulnerability-intelligence and
+behavioral outputs. Adapters preserve source provenance, scoped identity,
+semantic timestamps, categorical quality and limitations while omitting raw
+sensitive values. They perform no cross-module matching or correlation and are
+not exposed as a client trust-ingestion endpoint. See
+[`docs/UNIFIED_EVIDENCE_MODEL.md`](docs/UNIFIED_EVIDENCE_MODEL.md) and
+[`docs/EVIDENCE_PROVENANCE_AND_TRUST.md`](docs/EVIDENCE_PROVENANCE_AND_TRUST.md).

@@ -579,3 +579,17 @@ operation timeout, 1 MiB encoded response, and four active workers. HTTP 413,
 422, 429, 503, and sanitized 500 retain distinct meanings. It accepts no code,
 URLs, dynamic rules/policies, trusted client findings/graphs, free-form ATT&CK
 IDs, export paths, persistence targets, or executable content.
+
+## Internal unified evidence contracts
+
+Checkpoint 06.01 intentionally adds no public evidence endpoint. The internal
+`EvidenceRecord`/`EvidenceBatch` schema is version `1.0.0`, strict, frozen and
+bounded to 256 records, 32 KiB per record, 1 MiB per batch, 16 references per
+record and fixed schema depth eight. Static, ML, vulnerability and behavioral
+observations use a discriminator and prohibit arbitrary fields.
+
+Only typed backend source models can enter the adapters. Unknown module or
+schema versions and mismatched model types fail with controlled normalization
+errors. A descriptor is available as a Python function for internal consumers;
+there is no `/correlate`, `/investigations`, `/threat-score`, `/detections` or
+client-accreditation route.

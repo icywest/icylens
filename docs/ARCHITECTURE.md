@@ -646,3 +646,18 @@ stage. A loaded catalog with no candidates is complete. The orchestration adds
 no reverse dependency into earlier engines, no open-ended explanation engine,
 and no persistence, filesystem/network side effect, ML, or vulnerability
 intelligence dependency.
+
+## Phase 06 checkpoint 06.01 unified evidence boundary
+
+Phase 02 through 05 response models flow through explicit typed adapters into
+frozen `EvidenceRecord` instances and then a deterministically ordered
+`EvidenceBatch`. Source models do not depend on the evidence layer, and the
+evidence layer does not invoke source engines. This preserves a one-way
+dependency and keeps future correlation outside the checkpoint.
+
+The schema separates evidence, subject, analysis, source and batch identities;
+origin from trust; representation integrity from factual certainty; and every
+timestamp meaning from every other meaning. Canonical SHA-256 IDs are verified
+on model construction. Fixed typed observations avoid arbitrary nested data;
+tuples and frozen nested contracts provide effective immutability. No evidence
+HTTP ingestion route, storage layer or inferred cross-module edge exists.
