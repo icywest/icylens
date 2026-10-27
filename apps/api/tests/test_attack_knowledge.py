@@ -12,11 +12,15 @@ from pydantic import ValidationError
 
 from app.attack.catalog import (
     ATTACK_SOURCE_SHA256,
+    ATTACKCatalogSnapshot,
     ATTACKCatalogStore,
     ATTACKCatalogUnavailableError,
     ATTACKCatalogValidationError,
+    _build_fixture_snapshot_from_stix,
+    _load_fixture_snapshot,
     build_snapshot_from_stix,
     load_snapshot,
+    load_verified_snapshot,
     serialize_snapshot,
 )
 from app.main import create_app
@@ -40,18 +44,35 @@ def objects(document: dict[str, object]) -> list[dict[str, object]]:
     return document["objects"]  # type: ignore[return-value]
 
 
-def synthetic_snapshot():
-    return build_snapshot_from_stix(fixture_bytes(), NOW, expected_source_digest=None)
+def synthetic_snapshot() -> ATTACKCatalogSnapshot:
+    return _build_fixture_snapshot_from_stix(fixture_bytes(), NOW)
+
+
+class FixtureATTACKCatalogStore(ATTACKCatalogStore):
+    """Test-only store for unverified synthetic catalogs."""
+
+    def __init__(
+        self,
+        path: Path | None = None,
+        snapshot: ATTACKCatalogSnapshot | None = None,
+    ) -> None:
+        super().__init__(path)
+        if snapshot is not None:
+            self._snapshot = snapshot
+
+    def load(self) -> ATTACKCatalogSnapshot:
+        if self._path is None:
+            return self.snapshot
+        return super().load()
 
 
 def synthetic_store() -> ATTACKCatalogStore:
-    class PublishedStore(ATTACKCatalogStore):
-        def load(self):
-            return self.snapshot
+    return FixtureATTACKCatalogStore(snapshot=synthetic_snapshot())
 
-    store = PublishedStore()
-    store.publish(synthetic_snapshot())
-    return store
+
+@pytest.fixture(scope="module")
+def verified_official():
+    return load_verified_snapshot()
 
 
 @pytest.mark.unit
@@ -81,25 +102,26 @@ def test_deprecated_is_distinct_and_excluded_by_default() -> None:
 
 
 @pytest.mark.unit
-def test_snapshot_is_effectively_immutable_and_repeated_publication_is_idempotent() -> (
-    None
-):
+def test_snapshot_is_immutable_and_unverified_publication_is_rejected(
+    verified_official,
+) -> None:
     snapshot = synthetic_snapshot()
     with pytest.raises(TypeError):
         snapshot.techniques_by_id["T9999"] = snapshot.techniques_by_id["T1000"]  # type: ignore[index]
+    with pytest.raises(TypeError, match="VerifiedAttackCatalogSnapshot"):
+        ATTACKCatalogStore().publish(snapshot)  # type: ignore[arg-type]
     store = ATTACKCatalogStore()
-    store.publish(snapshot)
-    store.publish(snapshot)
-    assert store.snapshot is snapshot
+    store.publish(verified_official)
+    store.publish(verified_official)
+    assert store.snapshot == verified_official.snapshot
 
 
 @pytest.mark.unit
 def test_failed_load_does_not_replace_valid_snapshot(tmp_path: Path) -> None:
     path = tmp_path / "broken.gz"
     path.write_bytes(b"not gzip")
-    store = ATTACKCatalogStore(path)
     valid = synthetic_snapshot()
-    store.publish(valid)
+    store = FixtureATTACKCatalogStore(path, snapshot=valid)
     with pytest.raises(ATTACKCatalogValidationError):
         store.load()
     assert store.snapshot is valid
@@ -154,19 +176,15 @@ def test_adversarial_bundle_validation(mutation, message: str) -> None:
     document = fixture_document()
     mutation(document)
     with pytest.raises(ATTACKCatalogValidationError, match=message):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
 
 @pytest.mark.unit
 def test_corrupt_json_size_depth_and_naive_time_are_rejected() -> None:
     with pytest.raises(ATTACKCatalogValidationError, match="UTF-8 JSON"):
-        build_snapshot_from_stix(b"{", NOW, expected_source_digest=None)
+        _build_fixture_snapshot_from_stix(b"{", NOW)
     with pytest.raises(ATTACKCatalogValidationError, match="byte limit"):
-        build_snapshot_from_stix(
-            fixture_bytes(), NOW, maximum_bytes=10, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(), NOW, maximum_bytes=10)
 
 
 @pytest.mark.unit
@@ -199,9 +217,7 @@ def test_field_limits_and_types_fail_closed(
     document = fixture_document()
     objects(document)[index][field] = value
     with pytest.raises(ATTACKCatalogValidationError, match=message):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
 
 @pytest.mark.unit
@@ -217,9 +233,7 @@ def test_external_reference_failures(references: object, message: str) -> None:
     document = fixture_document()
     objects(document)[0]["external_references"] = references
     with pytest.raises(ATTACKCatalogValidationError, match=message):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
 
 @pytest.mark.unit
@@ -227,24 +241,19 @@ def test_object_relationship_and_identity_cardinality_failures() -> None:
     document = fixture_document()
     objects(document).append("not-an-object")  # type: ignore[arg-type]
     with pytest.raises(ATTACKCatalogValidationError, match="mapping"):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
     document = fixture_document()
     del objects(document)[0]["x_mitre_shortname"]
     with pytest.raises(ATTACKCatalogValidationError, match="short name"):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
     document = fixture_document()
     with pytest.raises(ATTACKCatalogValidationError, match="Relationship limit"):
-        build_snapshot_from_stix(
+        _build_fixture_snapshot_from_stix(
             fixture_bytes(document),
             NOW,
             maximum_relationships=0,
-            expected_source_digest=None,
         )
 
     document = fixture_document()
@@ -252,9 +261,7 @@ def test_object_relationship_and_identity_cardinality_failures() -> None:
     duplicate["id"] = "attack-pattern--66666666-6666-4666-8666-666666666666"
     objects(document).append(duplicate)
     with pytest.raises(ATTACKCatalogValidationError, match="Duplicate technique"):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
 
 @pytest.mark.unit
@@ -264,9 +271,7 @@ def test_revoked_subtechnique_constrained_parent_fallback() -> None:
     child = objects(document)[2]
     child.pop("x_mitre_deprecated")
     child["revoked"] = True
-    snapshot = build_snapshot_from_stix(
-        fixture_bytes(document), NOW, expected_source_digest=None
-    )
+    snapshot = _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
     assert snapshot.techniques_by_id["T1000.001"].parent_attack_id == "T1000"
     assert snapshot.techniques_by_id["T1000.001"].status is ATTACKObjectStatus.REVOKED
 
@@ -276,9 +281,7 @@ def test_active_subtechnique_requires_relationship() -> None:
     document = fixture_document()
     objects(document).pop(3)
     with pytest.raises(ATTACKCatalogValidationError, match="parent relationship"):
-        build_snapshot_from_stix(
-            fixture_bytes(document), NOW, expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(document), NOW)
 
 
 def pinned_synthetic_payload() -> dict[str, object]:
@@ -304,17 +307,17 @@ def test_snapshot_loader_resource_and_schema_failures(tmp_path: Path) -> None:
 
     write_snapshot(path, {"padding": "x" * 200})
     with pytest.raises(ATTACKCatalogValidationError, match="Expanded"):
-        load_snapshot(path, maximum_bytes=100, expected_artifact_digest=None)
+        _load_fixture_snapshot(path, maximum_bytes=100)
 
     payload = pinned_synthetic_payload()
     payload["schema_version"] = "2.0.0"
     write_snapshot(path, payload)
     with pytest.raises(ATTACKCatalogValidationError, match="schema"):
-        load_snapshot(path, expected_artifact_digest=None)
+        _load_fixture_snapshot(path)
 
     write_snapshot(path, [])
     with pytest.raises(ATTACKCatalogValidationError, match="schema"):
-        load_snapshot(path, expected_artifact_digest=None)
+        _load_fixture_snapshot(path)
 
 
 @pytest.mark.unit
@@ -347,19 +350,16 @@ def test_snapshot_loader_integrity_failures(
     path = tmp_path / "snapshot.gz"
     write_snapshot(path, payload)
     with pytest.raises(ATTACKCatalogValidationError, match=message):
-        load_snapshot(path, expected_artifact_digest=None)
+        _load_fixture_snapshot(path)
     with pytest.raises(ATTACKCatalogValidationError, match="timezone-aware"):
-        build_snapshot_from_stix(
-            fixture_bytes(), datetime(2026, 1, 1), expected_source_digest=None
-        )
+        _build_fixture_snapshot_from_stix(fixture_bytes(), datetime(2026, 1, 1))
     deep: object = "value"
     for _ in range(22):
         deep = [deep]
     with pytest.raises(ATTACKCatalogValidationError, match="nesting"):
-        build_snapshot_from_stix(
+        _build_fixture_snapshot_from_stix(
             json.dumps({"type": "bundle", "objects": deep}).encode(),
             NOW,
-            expected_source_digest=None,
         )
 
 
@@ -370,7 +370,7 @@ def test_snapshot_loader_rejects_tampered_provenance(tmp_path: Path) -> None:
     path = tmp_path / "snapshot.gz"
     path.write_bytes(gzip.compress(json.dumps(payload).encode(), mtime=0))
     with pytest.raises(ATTACKCatalogValidationError, match="provenance"):
-        load_snapshot(path, expected_artifact_digest=None)
+        _load_fixture_snapshot(path)
 
 
 @pytest.mark.unit

@@ -17,7 +17,9 @@ from app.attack.catalog import (
     DEFAULT_SNAPSHOT_PATH,
     ATTACKCatalogStore,
     ATTACKCatalogValidationError,
+    _load_fixture_snapshot,
     load_snapshot,
+    load_verified_snapshot,
 )
 from app.behavior.rule_engine import BehavioralRuleEngine
 from app.main import create_app
@@ -142,28 +144,28 @@ def test_packaged_snapshot_digest_is_external_and_checked_before_gzip(
 def test_failed_tampered_replacement_does_not_replace_valid_snapshot(
     tmp_path: Path,
 ) -> None:
-    valid = load_snapshot()
+    verified = load_verified_snapshot()
     payload = deepcopy(_official_payload())
     _mutate_technique_name(payload)
     path = tmp_path / "tampered.json.gz"
     _write_mutated_snapshot(path, payload)
     store = ATTACKCatalogStore(path)
-    store.publish(valid)
+    store.publish(verified)
 
     with pytest.raises(ATTACKCatalogValidationError, match="artifact digest"):
         store.load()
-    assert store.snapshot is valid
+    assert store.snapshot == verified.snapshot
 
 
 @pytest.mark.security
 def test_snapshot_read_and_decompression_fail_closed(tmp_path: Path) -> None:
     with pytest.raises(ATTACKCatalogValidationError, match="cannot be read"):
-        load_snapshot(tmp_path / "missing.gz", expected_artifact_digest=None)
+        load_snapshot(tmp_path / "missing.gz")
 
     corrupt = tmp_path / "corrupt.gz"
     corrupt.write_bytes(b"not-a-gzip-stream")
     with pytest.raises(ATTACKCatalogValidationError, match="decompressed"):
-        load_snapshot(corrupt, expected_artifact_digest=None)
+        _load_fixture_snapshot(corrupt)
 
 
 def _canary_events() -> tuple[
