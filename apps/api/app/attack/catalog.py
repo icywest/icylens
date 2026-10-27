@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import hmac
 import json
 import re
 from collections.abc import Mapping
@@ -10,6 +11,7 @@ from datetime import datetime, timezone
 from importlib.resources import files
 from io import BytesIO
 from pathlib import Path
+from threading import Lock
 from types import MappingProxyType
 from typing import Any, cast
 
@@ -43,6 +45,7 @@ DEFAULT_SNAPSHOT_PATH = (
     Path(__file__).resolve().parent / "data" / "enterprise-attack-19.2.json.gz"
 )
 _MAX_COMPRESSED_SNAPSHOT_BYTES = 2 * 1024 * 1024
+_MAX_EXPANDED_SNAPSHOT_BYTES = 16 * 1024 * 1024
 _STIX_ID = re.compile(
     r"^[a-z][a-z0-9-]*--[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 )
@@ -199,7 +202,50 @@ def build_snapshot_from_stix(
     maximum_bytes: int = 64 * 1024 * 1024,
     maximum_objects: int = 50_000,
     maximum_relationships: int = 40_000,
-    expected_source_digest: str | None = ATTACK_SOURCE_SHA256,
+) -> ATTACKCatalogSnapshot:
+    """Build a catalog only from the pinned official STIX source bytes."""
+    return _build_snapshot_from_stix(
+        source_bytes,
+        imported_at,
+        maximum_bytes=maximum_bytes,
+        maximum_objects=maximum_objects,
+        maximum_relationships=maximum_relationships,
+        expected_source_digest=ATTACK_SOURCE_SHA256,
+    )
+
+
+def _build_fixture_snapshot_from_stix(
+    source_bytes: bytes,
+    imported_at: datetime,
+    *,
+    maximum_bytes: int = 64 * 1024 * 1024,
+    maximum_objects: int = 50_000,
+    maximum_relationships: int = 40_000,
+) -> ATTACKCatalogSnapshot:
+    """Build an explicitly unverified fixture snapshot.
+
+    Fixtures are not publishable through ``ATTACKCatalogStore``. This constructor
+    exists only so tests can exercise parsing without weakening the production
+    source pin.
+    """
+    return _build_snapshot_from_stix(
+        source_bytes,
+        imported_at,
+        maximum_bytes=maximum_bytes,
+        maximum_objects=maximum_objects,
+        maximum_relationships=maximum_relationships,
+        expected_source_digest=None,
+    )
+
+
+def _build_snapshot_from_stix(
+    source_bytes: bytes,
+    imported_at: datetime,
+    *,
+    maximum_bytes: int,
+    maximum_objects: int,
+    maximum_relationships: int,
+    expected_source_digest: str | None,
 ) -> ATTACKCatalogSnapshot:
     if len(source_bytes) > maximum_bytes:
         raise ATTACKCatalogValidationError("Dataset exceeds byte limit")
@@ -419,13 +465,7 @@ def serialize_snapshot(snapshot: ATTACKCatalogSnapshot) -> bytes:
     ).encode()
 
 
-def load_snapshot(
-    path: Path | None = None,
-    *,
-    maximum_bytes: int = 16 * 1024 * 1024,
-    maximum_compressed_bytes: int = _MAX_COMPRESSED_SNAPSHOT_BYTES,
-    expected_artifact_digest: str | None = ATTACK_ARTIFACT_SHA256,
-) -> ATTACKCatalogSnapshot:
+def _read_artifact(path: Path | None, maximum_compressed_bytes: int) -> bytes:
     try:
         stream = (
             path.open("rb")
@@ -440,14 +480,12 @@ def load_snapshot(
             raise ATTACKCatalogValidationError("Compressed snapshot exceeds byte limit")
     except OSError as error:
         raise ATTACKCatalogValidationError("Snapshot cannot be read") from error
-    artifact_digest = hashlib.sha256(artifact).hexdigest()
-    if (
-        expected_artifact_digest is not None
-        and artifact_digest != expected_artifact_digest
-    ):
-        raise ATTACKCatalogValidationError(
-            "Snapshot artifact digest does not match the pin"
-        )
+    return artifact
+
+
+def _parse_snapshot_artifact(
+    artifact: bytes, *, maximum_bytes: int
+) -> ATTACKCatalogSnapshot:
     try:
         with gzip.GzipFile(fileobj=BytesIO(artifact), mode="rb") as gzip_stream:
             data = gzip_stream.read(maximum_bytes + 1)
@@ -511,21 +549,153 @@ def load_snapshot(
     )
 
 
+class VerifiedAttackCatalogSnapshot:
+    """A snapshot derived only from artifact bytes matching the official pin.
+
+    Construction performs the complete trust decision: bounded compressed read,
+    SHA-256 comparison with the repository-versioned artifact pin, then bounded
+    gzip expansion and schema validation. No caller-supplied digest is accepted.
+
+    Normal attribute reassignment is blocked. Because Python still permits an
+    explicit ``object.__setattr__`` call, publication never trusts the cached
+    ``_snapshot``; it rebuilds the value from the pinned artifact bytes.
+    """
+
+    _artifact: bytes
+    _snapshot: ATTACKCatalogSnapshot
+    __slots__ = ("_artifact", "_snapshot")
+
+    def __init__(
+        self,
+        artifact: bytes,
+        *,
+        maximum_bytes: int = _MAX_EXPANDED_SNAPSHOT_BYTES,
+        maximum_compressed_bytes: int = _MAX_COMPRESSED_SNAPSHOT_BYTES,
+    ) -> None:
+        if len(artifact) > maximum_compressed_bytes:
+            raise ATTACKCatalogValidationError("Compressed snapshot exceeds byte limit")
+        if not hmac.compare_digest(
+            hashlib.sha256(artifact).hexdigest(), ATTACK_ARTIFACT_SHA256
+        ):
+            raise ATTACKCatalogValidationError(
+                "Snapshot artifact digest does not match the pin"
+            )
+        object.__setattr__(self, "_artifact", artifact)
+        object.__setattr__(
+            self,
+            "_snapshot",
+            _parse_snapshot_artifact(artifact, maximum_bytes=maximum_bytes),
+        )
+
+    def __setattr__(self, name: str, value: object) -> None:
+        raise AttributeError("VerifiedAttackCatalogSnapshot is immutable")
+
+    def __delattr__(self, name: str) -> None:
+        raise AttributeError("VerifiedAttackCatalogSnapshot is immutable")
+
+    @property
+    def snapshot(self) -> ATTACKCatalogSnapshot:
+        return self._snapshot
+
+    @property
+    def artifact_sha256(self) -> str:
+        return hashlib.sha256(self._artifact).hexdigest()
+
+    @property
+    def artifact_size(self) -> int:
+        return len(self._artifact)
+
+    @staticmethod
+    def _verify_artifact(artifact: bytes) -> None:
+        if len(artifact) > _MAX_COMPRESSED_SNAPSHOT_BYTES:
+            raise ATTACKCatalogValidationError("Compressed snapshot exceeds byte limit")
+        if not hmac.compare_digest(
+            hashlib.sha256(artifact).hexdigest(), ATTACK_ARTIFACT_SHA256
+        ):
+            raise ATTACKCatalogValidationError(
+                "Snapshot artifact digest does not match the pin"
+            )
+
+    def assert_artifact_pin(self) -> None:
+        self._verify_artifact(self._artifact)
+
+    def validated_snapshot(self) -> ATTACKCatalogSnapshot:
+        """Rebuild the catalog from the pinned bytes, ignoring cached state."""
+        artifact = self._artifact
+        self._verify_artifact(artifact)
+        return _parse_snapshot_artifact(
+            artifact, maximum_bytes=_MAX_EXPANDED_SNAPSHOT_BYTES
+        )
+
+
+def load_verified_snapshot(
+    path: Path | None = None,
+    *,
+    maximum_bytes: int = _MAX_EXPANDED_SNAPSHOT_BYTES,
+    maximum_compressed_bytes: int = _MAX_COMPRESSED_SNAPSHOT_BYTES,
+) -> VerifiedAttackCatalogSnapshot:
+    """Load a snapshot through the non-bypassable production trust boundary."""
+    artifact = _read_artifact(path, maximum_compressed_bytes)
+    return VerifiedAttackCatalogSnapshot(
+        artifact,
+        maximum_bytes=maximum_bytes,
+        maximum_compressed_bytes=maximum_compressed_bytes,
+    )
+
+
+def load_snapshot(
+    path: Path | None = None,
+    *,
+    maximum_bytes: int = _MAX_EXPANDED_SNAPSHOT_BYTES,
+    maximum_compressed_bytes: int = _MAX_COMPRESSED_SNAPSHOT_BYTES,
+) -> ATTACKCatalogSnapshot:
+    """Load the pinned snapshot and return its validated catalog value."""
+    return load_verified_snapshot(
+        path,
+        maximum_bytes=maximum_bytes,
+        maximum_compressed_bytes=maximum_compressed_bytes,
+    ).snapshot
+
+
+def _load_fixture_snapshot(
+    path: Path | None = None,
+    *,
+    maximum_bytes: int = _MAX_EXPANDED_SNAPSHOT_BYTES,
+    maximum_compressed_bytes: int = _MAX_COMPRESSED_SNAPSHOT_BYTES,
+) -> ATTACKCatalogSnapshot:
+    """Load an explicitly unverified snapshot for tests only.
+
+    The result is a plain ``ATTACKCatalogSnapshot`` and can never be published
+    through ``ATTACKCatalogStore`` without passing the verified artifact boundary.
+    """
+    artifact = _read_artifact(path, maximum_compressed_bytes)
+    return _parse_snapshot_artifact(artifact, maximum_bytes=maximum_bytes)
+
+
 class ATTACKCatalogStore:
     def __init__(self, path: Path | None = None) -> None:
         self._snapshot: ATTACKCatalogSnapshot | None = None
         self._path = path
+        self._snapshot_lock = Lock()
 
     @property
     def snapshot(self) -> ATTACKCatalogSnapshot:
-        if self._snapshot is None:
+        with self._snapshot_lock:
+            snapshot = self._snapshot
+        if snapshot is None:
             raise ATTACKCatalogUnavailableError("ATT&CK catalog is unavailable")
-        return self._snapshot
+        return snapshot
 
     def load(self) -> ATTACKCatalogSnapshot:
-        candidate = load_snapshot(self._path)
-        self._snapshot = candidate
-        return candidate
+        verified = load_verified_snapshot(self._path)
+        self.publish(verified)
+        return self.snapshot
 
-    def publish(self, candidate: ATTACKCatalogSnapshot) -> None:
-        self._snapshot = candidate
+    def publish(self, verified: VerifiedAttackCatalogSnapshot) -> None:
+        if type(verified) is not VerifiedAttackCatalogSnapshot:
+            raise TypeError(
+                "Only VerifiedAttackCatalogSnapshot instances can be published"
+            )
+        snapshot = verified.validated_snapshot()
+        with self._snapshot_lock:
+            self._snapshot = snapshot
