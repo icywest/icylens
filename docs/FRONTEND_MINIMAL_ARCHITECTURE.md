@@ -33,4 +33,14 @@ apps/web/
 - src/lib/api.ts provides a minimal fetch wrapper with base URL via PUBLIC_API_BASE_URL (default http://127.0.0.1:8000), timeout/abort support, and basic error normalization. Not used in FE-01.
 
 ## Build
-- npm run build produces static site in dist/
+- `npm ci` installs the locked dependency graph with Node.js `>=22.23.4`.
+- `npm run check`, `npm run typecheck`, `npm run lint`, `npm run format`, and
+  `npm test` validate the baseline.
+- `npm run build` produces the ignored static site in `dist/`.
+
+## FE-01.1 recovery
+
+The recovery checkpoint corrected malformed TypeScript in `src/lib/api.ts`,
+added explicit local quality scripts and component tests, and removed nested
+Git metadata from `apps/web` after preserving it outside the repository. No
+backend integration was added.
