@@ -44,9 +44,9 @@ export function MLPredictionVisualization({ file }: { file: File }) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="rounded border border-neutral-800 bg-neutral-950 p-3 text-xs leading-5 text-neutral-500">
-        <p className="text-neutral-300">Synthetic educational demonstration</p>
+    <div className="grid gap-4">
+      <div className="ml-intro">
+        <strong>Synthetic educational demonstration</strong>
         <p>
           This optional action uploads the file to a separate,
           disabled-by-default endpoint. Its model was trained only on synthetic
@@ -58,7 +58,7 @@ export function MLPredictionVisualization({ file }: { file: File }) {
           type="button"
           onClick={run}
           disabled={status === 'loading'}
-          className="rounded border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300 disabled:opacity-50"
+          className="button"
         >
           {status === 'loading'
             ? 'Running synthetic demo…'
@@ -81,8 +81,8 @@ export function MLPredictionVisualization({ file }: { file: File }) {
 function MLResult({ result }: { result: MLInferenceResult }) {
   const probabilities = result.prediction.probability_estimates;
   return (
-    <div className="space-y-4" aria-label="Synthetic ML result">
-      <div className="feature-grid">
+    <div className="ml-result" aria-label="Synthetic ML result">
+      <dl className="feature-grid">
         <MLField label="Model output" value={result.prediction.label} />
         <MLField
           label="Benign estimate"
@@ -92,14 +92,13 @@ function MLResult({ result }: { result: MLInferenceResult }) {
           label="Malicious estimate"
           value={`${(probabilities.malicious * 100).toFixed(2)}%`}
         />
-      </div>
-      <p className="text-xs leading-5 text-neutral-500">
+      </dl>
+      <p className="ml-result__copy">
         These are uncalibrated class probability estimates from model{' '}
-        <code className="text-neutral-300">{result.model.model_id}</code>. They
-        are not confidence, risk, or a security verdict. Operational detection
-        approval: no.
+        <code>{result.model.model_id}</code>. They are not confidence, risk, or
+        a security verdict. Operational detection approval: no.
       </p>
-      <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
+      <dl className="ml-detail-grid">
         <MLField label="Algorithm" value={result.model.algorithm} />
         <MLField
           label="Feature schema"
@@ -114,7 +113,7 @@ function MLResult({ result }: { result: MLInferenceResult }) {
           value={result.model.model_selection_status}
         />
       </dl>
-      <ul className="list-disc space-y-1 pl-4 text-xs leading-5 text-neutral-500">
+      <ul className="ml-limitations">
         {result.limitations.map((item) => (
           <li key={item.code}>{item.description}</li>
         ))}
@@ -137,9 +136,9 @@ function isApiError(error: unknown): error is ApiError {
 
 function MLField({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-neutral-500">{label}</dt>
-      <dd className="break-words text-neutral-300">{value}</dd>
+    <div className="ml-field">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
 }

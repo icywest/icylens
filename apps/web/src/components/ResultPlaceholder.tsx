@@ -1,3 +1,4 @@
+import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
 import type { StaticAnalysisResult } from '../lib/api';
 import { AnalysisPipeline } from './AnalysisPipeline';
@@ -6,22 +7,19 @@ import { MLPredictionVisualization } from './MLPredictionVisualization';
 import { StaticFeatureVisualization } from './StaticFeatureVisualization';
 
 type BrowserFileMetadata = { name: string; size: number; type: string };
-type ResultPlaceholderProps = {
+type Props = {
   result: StaticAnalysisResult;
   browserFile: BrowserFileMetadata;
   sourceFile: File;
 };
 
-export function ResultPlaceholder({
-  result,
-  browserFile,
-  sourceFile,
-}: ResultPlaceholderProps) {
+export function ResultPlaceholder({ result, browserFile, sourceFile }: Props) {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
     'idle',
   );
   const { fingerprint, content } = result;
   const extension = getExtension(browserFile.name);
+
   const copyHash = async () => {
     try {
       await navigator.clipboard.writeText(fingerprint.sha256);
@@ -32,91 +30,104 @@ export function ResultPlaceholder({
   };
 
   return (
-    <div className="space-y-5" aria-label="Technical analysis results">
-      <ResultSection title="File overview">
-        <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
-          <ResultField label="Filename" value={result.filename} />
-          <ResultField
-            label="Analyzed size"
+    <div className="results-stack" aria-label="Technical analysis results">
+      <ResultSection
+        title="File information"
+        description="Identity and fingerprint of the accepted file."
+      >
+        <dl className="property-table">
+          <Property label="Filename" value={result.filename} />
+          <Property
+            label="File size"
             value={formatBytes(fingerprint.size_bytes)}
           />
-          <ResultField
+          <Property
             label="Detected format"
             value={formatDetectedFormat(fingerprint.detected_format)}
           />
-          <ResultField
-            label="Browser-declared MIME"
+          <Property
+            label="Browser MIME"
             value={browserFile.type || 'Not provided'}
           />
-          <ResultField label="Filename extension" value={extension || 'None'} />
-          <ResultField
+          <Property label="Extension" value={extension || 'None'} />
+          <Property
             label="Extension consistency"
             value={formatConsistency(fingerprint.format_consistency)}
           />
-          <ResultField
-            label="Backend validation"
-            value="Accepted and analyzed"
-          />
-          <ResultField label="Analysis type" value="Static" />
+          <Property label="Validation status" value="Accepted and analyzed" />
+          <Property label="Analysis type" value="Static" />
+          <div className="property-row property-row--hash">
+            <dt>SHA-256</dt>
+            <dd>
+              <div className="fingerprint__row">
+                <code>{fingerprint.sha256}</code>
+                <button
+                  type="button"
+                  onClick={copyHash}
+                  className="button button--secondary"
+                  aria-label="Copy hash"
+                >
+                  {copyStatus === 'copied' ? (
+                    <Check size={14} aria-hidden="true" />
+                  ) : (
+                    <Copy size={14} aria-hidden="true" />
+                  )}
+                  {copyStatus === 'copied' ? 'Copied' : 'Copy hash'}
+                </button>
+              </div>
+              <div aria-live="polite" className="copy-status">
+                {copyStatus === 'copied' && 'Hash copied.'}
+                {copyStatus === 'error' &&
+                  'Copy failed. Select the hash manually.'}
+              </div>
+              <p className="help-text">
+                A cryptographic fingerprint calculated from the file contents.
+                It does not determine whether a file is malicious.
+              </p>
+            </dd>
+          </div>
         </dl>
-        <p className="text-xs leading-5 text-neutral-500">
-          The MIME value is declared by the browser. Detected format is based on
-          bounded backend signature inspection; neither proves that the complete
-          file structure is valid.
-        </p>
       </ResultSection>
 
-      <ResultSection title="Fingerprints">
-        <div className="space-y-2">
-          <div className="text-xs text-neutral-500">SHA-256</div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
-            <code className="min-w-0 flex-1 break-all rounded border border-neutral-800 bg-neutral-950 p-2 text-xs text-neutral-300">
-              {fingerprint.sha256}
-            </code>
-            <button
-              type="button"
-              onClick={copyHash}
-              className="rounded border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-400"
-            >
-              Copy hash
-            </button>
+      <ResultSection
+        title="Static analysis"
+        description="Bounded properties extracted without executing the file."
+      >
+        <div className="static-layout">
+          <div className="static-layout__entropy">
+            <EntropyVisualization
+              value={content.entropy.shannon_entropy}
+              totalBytes={content.entropy.total_bytes}
+            />
           </div>
-          <div aria-live="polite" className="min-h-4 text-xs text-neutral-500">
-            {copyStatus === 'copied' && 'Hash copied.'}
-            {copyStatus === 'error' && 'Copy failed. Select the hash manually.'}
-          </div>
-          <p className="text-xs leading-5 text-neutral-500">
-            A cryptographic fingerprint calculated from the file contents. It
-            does not determine whether a file is malicious.
-          </p>
+          <StaticFeatureVisualization
+            strings={content.strings}
+            indicators={result.indicators}
+            indicatorsTruncated={result.indicators_truncated}
+          />
         </div>
       </ResultSection>
 
-      <ResultSection title="Entropy">
-        <EntropyVisualization
-          value={content.entropy.shannon_entropy}
-          totalBytes={content.entropy.total_bytes}
-        />
-      </ResultSection>
-
-      <ResultSection title="Static features">
-        <StaticFeatureVisualization
-          strings={content.strings}
-          indicators={result.indicators}
-          indicatorsTruncated={result.indicators_truncated}
-        />
-      </ResultSection>
-
-      <ResultSection title="How the analysis fits together">
+      <ResultSection
+        title="Analysis process"
+        description="Conceptual stages used to organize the analysis."
+      >
         <AnalysisPipeline result={result} />
       </ResultSection>
 
-      <ResultSection title="Machine-learning visualization">
+      <ResultSection
+        className="result-section--secondary"
+        title="Machine learning educational lab"
+        description="Optional synthetic demonstration, separate from the file analysis result."
+      >
         <MLPredictionVisualization file={sourceFile} />
       </ResultSection>
 
-      <ResultSection title="Limitations">
-        <ul className="list-disc space-y-2 pl-4 text-xs leading-5 text-neutral-500">
+      <ResultSection
+        title="Scientific limitations"
+        description="These backend-provided boundaries apply to interpretation."
+      >
+        <ul className="limitation-list">
           {result.analysis_limitations.map((limitation) => (
             <li key={limitation.code}>{limitation.description}</li>
           ))}
@@ -128,24 +139,31 @@ export function ResultPlaceholder({
 
 function ResultSection({
   title,
+  description,
+  className = '',
   children,
 }: {
   title: string;
+  description: string;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-md border border-neutral-800 p-4">
-      <h3 className="text-sm font-medium text-neutral-200">{title}</h3>
-      {children}
+    <section className={`result-section ${className}`}>
+      <header className="result-section__header">
+        <h3>{title}</h3>
+        <p>{description}</p>
+      </header>
+      <div className="result-section__body">{children}</div>
     </section>
   );
 }
 
-function ResultField({ label, value }: { label: string; value: string }) {
+function Property({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-neutral-500">{label}</dt>
-      <dd className="break-words text-neutral-300">{value}</dd>
+    <div className="property-row">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
 }

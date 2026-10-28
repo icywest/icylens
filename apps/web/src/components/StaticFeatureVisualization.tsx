@@ -1,6 +1,6 @@
 import type { StaticAnalysisResult } from '../lib/api';
 
-type StaticFeatureVisualizationProps = {
+type Props = {
   strings: StaticAnalysisResult['content']['strings'];
   indicators: StaticAnalysisResult['indicators'];
   indicatorsTruncated: boolean;
@@ -10,14 +10,13 @@ export function StaticFeatureVisualization({
   strings,
   indicators,
   indicatorsTruncated,
-}: StaticFeatureVisualizationProps) {
+}: Props) {
   const retainedCapacity = Math.min(
     100,
     (strings.retained_count / strings.maximum_retained_strings) * 100,
   );
-
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4">
       <div className="feature-grid">
         <FeatureCard
           label="Printable strings observed"
@@ -32,10 +31,10 @@ export function StaticFeatureVisualization({
           value={indicators.length}
         />
       </div>
-      <div className="space-y-2">
-        <div className="flex justify-between gap-3 text-xs">
-          <span className="text-neutral-400">Retained string capacity</span>
-          <span className="text-neutral-500">
+      <div className="grid gap-2">
+        <div className="flex justify-between gap-3">
+          <span className="technical-label">Retained string capacity</span>
+          <span className="font-mono text-[.72rem] text-[var(--color-text-muted)]">
             {strings.retained_count.toLocaleString('en-US')} /{' '}
             {strings.maximum_retained_strings.toLocaleString('en-US')}
           </span>
@@ -53,12 +52,12 @@ export function StaticFeatureVisualization({
             style={{ width: `${retainedCapacity}%` }}
           />
         </div>
-        <p className="text-xs text-neutral-600">
+        <p className="explanation">
           This bar compares retained summaries with the configured backend cap;
           it does not represent severity.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2 text-xs">
+      <div className="bound-tags">
         <BoundTag
           active={strings.truncated}
           text={
@@ -79,23 +78,17 @@ export function StaticFeatureVisualization({
           No informational text-pattern indicators were retained.
         </div>
       ) : (
-        <ul
-          className="space-y-2 text-xs text-neutral-500"
-          aria-label="Indicators"
-        >
+        <ul className="indicator-list" aria-label="Indicators">
           {indicators.map((indicator, index) => (
-            <li
-              key={`${indicator.id}-${index}`}
-              className="rounded border border-neutral-800 p-2"
-            >
-              <span className="text-neutral-300">{indicator.category}</span>
+            <li key={`${indicator.id}-${index}`} className="indicator-item">
+              <strong>{indicator.category}</strong>
               {' — '}
               {indicator.description}
             </li>
           ))}
         </ul>
       )}
-      <p className="text-xs leading-5 text-neutral-600">
+      <p className="explanation">
         Counts are bounded observations. Indicators are informational patterns
         that can also occur in benign files.
       </p>
@@ -106,17 +99,15 @@ export function StaticFeatureVisualization({
 function FeatureCard({ label, value }: { label: string; value: number }) {
   return (
     <div className="feature-card">
-      <div className="text-xl text-neutral-100">
-        {value.toLocaleString('en-US')}
-      </div>
-      <div className="text-xs leading-5 text-neutral-500">{label}</div>
+      <div className="feature-card__value">{value.toLocaleString('en-US')}</div>
+      <div className="feature-card__label">{label}</div>
     </div>
   );
 }
 
 function BoundTag({ active, text }: { active: boolean; text: string }) {
   return (
-    <span className="rounded border border-neutral-800 px-2 py-1 text-neutral-500">
+    <span className="bound-tag">
       <span aria-hidden="true">{active ? '↳' : '✓'} </span>
       {text}
     </span>

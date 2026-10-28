@@ -5,8 +5,8 @@ export function AnalysisPipeline({ result }: { result: StaticAnalysisResult }) {
   const [openStage, setOpenStage] = useState<number | null>(null);
   const stages = buildStages(result);
   return (
-    <div className="space-y-3">
-      <p className="rounded border border-neutral-800 bg-neutral-950 p-3 text-xs leading-5 text-neutral-500">
+    <div>
+      <p className="pipeline-note">
         Conceptual model only. This is not an execution trace and does not show
         measured stage timing, backend events, or hidden processing state.
       </p>

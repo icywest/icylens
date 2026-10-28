@@ -1,3 +1,4 @@
+import { RotateCw, Square } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   analyzeFile,
@@ -46,14 +47,12 @@ export function FileAnalysisApp() {
 
   const analyze = useCallback(async () => {
     if (!selectedFile || status === 'analyzing') return;
-
     const controller = new AbortController();
     const requestId = ++requestSequence.current;
     activeController.current = controller;
     setStatus('analyzing');
     setResult(null);
     setError(null);
-
     try {
       const nextResult = await analyzeFile(selectedFile, {
         signal: controller.signal,
@@ -74,9 +73,8 @@ export function FileAnalysisApp() {
       );
       setStatus('error');
     } finally {
-      if (requestSequence.current === requestId) {
+      if (requestSequence.current === requestId)
         activeController.current = null;
-      }
     }
   }, [selectedFile, status]);
 
@@ -95,96 +93,116 @@ export function FileAnalysisApp() {
     selectedFile.size > 0 &&
     selectedFile.size <= MAX_FILE_BYTES &&
     status !== 'analyzing';
+  const completed =
+    status === 'completed' && result !== null && selectedFile !== null;
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-3" aria-labelledby="upload-heading">
-        <h2 id="upload-heading" className="text-sm text-neutral-300">
-          Upload
-        </h2>
-        <FileUploader
-          onFileSelected={onFileSelected}
-          maxBytes={MAX_FILE_BYTES}
-        />
+    <div className="analysis-app">
+      <section
+        className="upload-workbench"
+        data-compact={completed}
+        aria-labelledby="upload-heading"
+      >
+        <div className="upload-workbench__header">
+          <h2 id="upload-heading">Select a file</h2>
+        </div>
+        <div className="upload-workbench__body">
+          <FileUploader
+            onFileSelected={onFileSelected}
+            maxBytes={MAX_FILE_BYTES}
+            compact={completed}
+          />
+        </div>
+
+        {selectedFile && !completed && (
+          <div className="analysis-action">
+            {status === 'analyzing' ? (
+              <div
+                className="processing-state"
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className="processing-state__indicator"
+                  aria-hidden="true"
+                />
+                <div className="analysis-action__copy">
+                  <strong>Analyzing file</strong>FastAPI is validating and
+                  inspecting the uploaded bytes.
+                </div>
+              </div>
+            ) : (
+              <div className="analysis-action__copy">
+                <strong>Ready for bounded static analysis</strong>No file
+                content is executed by this workflow.
+              </div>
+            )}
+            {status === 'analyzing' ? (
+              <button type="button" onClick={cancel} className="button">
+                <Square size={13} fill="currentColor" aria-hidden="true" />
+                Cancel
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={analyze}
+                disabled={!canAnalyze}
+                className="button button--primary"
+              >
+                {status === 'error' && (
+                  <RotateCw size={14} aria-hidden="true" />
+                )}
+                {status === 'error' ? 'Retry analysis' : 'Analyze File'}
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
-      {selectedFile && status !== 'analyzing' && status !== 'completed' && (
-        <section className="flex flex-col gap-3 rounded-md border border-neutral-800 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-neutral-500">
-            Ready for local FastAPI static analysis.
-          </div>
-          <button
-            type="button"
-            onClick={analyze}
-            disabled={!canAnalyze}
-            className="rounded border border-neutral-700 px-3 py-2 text-sm text-neutral-200 hover:bg-neutral-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-400 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {status === 'error' ? 'Retry analysis' : 'Analyze File'}
-          </button>
-        </section>
-      )}
-
-      {status === 'analyzing' && (
-        <section className="flex flex-col gap-3 rounded-md border border-neutral-800 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div role="status" aria-live="polite" className="space-y-1">
-            <div className="text-sm text-neutral-200">Analyzing file…</div>
-            <div className="text-xs text-neutral-500">
-              FastAPI is validating and inspecting the uploaded bytes.
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={cancel}
-            className="rounded border border-neutral-700 px-3 py-2 text-xs text-neutral-300 hover:bg-neutral-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-400"
-          >
-            Cancel
-          </button>
-        </section>
-      )}
-
       {status === 'cancelled' && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="text-xs text-neutral-500"
-        >
+        <div role="status" aria-live="polite" className="technical-empty">
           Analysis cancelled. Cancelling the browser request may not stop
           backend processing immediately.
         </div>
       )}
-
       {status === 'error' && error && (
-        <div
-          role="alert"
-          className="rounded-md border border-red-950 p-3 text-xs text-red-300"
-        >
+        <div role="alert" className="request-error">
           {error}
         </div>
       )}
 
-      {status === 'completed' && result && selectedFile && (
-        <section className="space-y-3" aria-labelledby="results-heading">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="results-heading" className="text-sm text-neutral-300">
-              Technical results
-            </h2>
-            <button
-              type="button"
-              onClick={analyze}
-              className="rounded border border-neutral-800 px-3 py-1 text-xs text-neutral-400 hover:bg-neutral-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-neutral-400"
-            >
-              Analyze again
-            </button>
+      {completed && (
+        <section aria-labelledby="results-heading">
+          <div className="results-header">
+            <div>
+              <h2 id="results-heading">Analysis results</h2>
+              <p className="results-header__status">
+                Analysis completed successfully.
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-2 max-sm:items-start">
+              <div className="results-header__meta">{result.analysis_id}</div>
+              <button
+                type="button"
+                onClick={analyze}
+                className="button button--quiet"
+              >
+                <RotateCw size={13} aria-hidden="true" />
+                Analyze again
+              </button>
+            </div>
           </div>
-          <ResultPlaceholder
-            result={result}
-            sourceFile={selectedFile}
-            browserFile={{
-              name: selectedFile.name,
-              size: selectedFile.size,
-              type: selectedFile.type,
-            }}
-          />
+          <div className="mt-5">
+            <ResultPlaceholder
+              result={result}
+              sourceFile={selectedFile}
+              browserFile={{
+                name: selectedFile.name,
+                size: selectedFile.size,
+                type: selectedFile.type,
+              }}
+            />
+          </div>
         </section>
       )}
     </div>
