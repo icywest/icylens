@@ -1,0 +1,25 @@
+﻿---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { FileAnalysisApp } from '../components/FileAnalysisApp';
+---
+
+<BaseLayout>
+  <main class="mx-auto max-w-2xl px-4 py-10 space-y-8">
+    <header class="space-y-2">
+      <div class="text-xs uppercase tracking-widest text-neutral-500">
+        iCYLENS
+      </div>
+      <h1 class="text-2xl font-medium">File Analysis Lab</h1>
+      <p class="text-sm text-neutral-400">Behind the Detection.</p>
+      <p class="text-sm text-neutral-500">
+        Explore how file analysis works through software engineering.
+      </p>
+    </header>
+
+    <FileAnalysisApp client:load />
+
+    <footer class="pt-6 text-xs text-neutral-600">
+      Academic demonstration. No malware verdicts, no threat feeds.
+    </footer>
+  </main>
+</BaseLayout>
