@@ -31,7 +31,22 @@ describe('FileAnalysisApp', () => {
     expect(analyzeFileMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Analyze File' }));
 
-    expect(await screen.findByText('Technical results')).toBeInTheDocument();
+    expect(await screen.findByText('Analysis results')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'File information' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Static analysis' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Analysis process' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Scientific limitations' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Choose another' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('PDF')).toBeInTheDocument();
     expect(screen.getByText('application/octet-stream')).toBeInTheDocument();
     expect(screen.getByText('a'.repeat(64))).toBeInTheDocument();
@@ -57,6 +72,7 @@ describe('FileAnalysisApp', () => {
       screen.queryByText(/malware detected|file is safe|threat confirmed/i),
     ).not.toBeInTheDocument();
     expect(setItem).not.toHaveBeenCalled();
+    expect(analyzeFileMock).toHaveBeenCalledOnce();
   });
 
   it('cancels an active request and exposes the cancelled state', async () => {
@@ -75,7 +91,7 @@ describe('FileAnalysisApp', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
     expect(screen.getByText(/Analysis cancelled/)).toBeInTheDocument();
-    expect(screen.queryByText('Technical results')).not.toBeInTheDocument();
+    expect(screen.queryByText('Analysis results')).not.toBeInTheDocument();
     expect(
       (analyzeFileMock.mock.calls[0]?.[1] as { signal: AbortSignal }).signal
         .aborted,
@@ -150,7 +166,7 @@ describe('FileAnalysisApp', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Retry analysis' }));
-    expect(await screen.findByText('Technical results')).toBeInTheDocument();
+    expect(await screen.findByText('Analysis results')).toBeInTheDocument();
     expect(analyzeFileMock).toHaveBeenCalledTimes(2);
   });
 });

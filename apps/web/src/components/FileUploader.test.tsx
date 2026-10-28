@@ -56,4 +56,24 @@ describe('FileUploader', () => {
     fireEvent.drop(dropzone, { dataTransfer: { files: [file] } });
     expect(onFileSelected).toHaveBeenLastCalledWith(file);
   });
+
+  it('uses a compact replacement control after completion', async () => {
+    const user = userEvent.setup();
+    const onFileSelected = vi.fn();
+    const { container, rerender } = render(
+      <FileUploader onFileSelected={onFileSelected} />,
+    );
+    const input = container.querySelector('input[type="file"]');
+    await user.upload(
+      input as HTMLInputElement,
+      new File(['sample'], 'complete.bin'),
+    );
+    rerender(<FileUploader onFileSelected={onFileSelected} compact />);
+    expect(
+      screen.getByRole('button', { name: 'Choose another' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Upload file' }),
+    ).not.toBeInTheDocument();
+  });
 });
